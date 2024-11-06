@@ -1,13 +1,22 @@
 # This minimal example on how to retrieve data from the apis
 import pandas as pd
+import json
 
 from src.utils.renewables_ninja import fetch_solar_data
 from src.utils.entsoe_client import fetch_and_save_spot_prices
 
 # Define the API tokens
 # Personal renewables.ninja API token
-ninja_token = "" #your renewables.ninja API token (to be stored in a JSON which is the gitignore and thus never comitted/pushed)
-entsoe_api_key = "" #your entsoe API token (to be stored in a JSON which is the gitignore and thus never comitted/pushed)
+with open("secrets.json", "r") as f:
+    secrets = json.load(f)
+
+ninja_token = secrets.get("ninja_token")
+entsoe_api_key = secrets.get("entsoe_api_key")
+
+print(ninja_token)
+
+# ninja_token = "" #your renewables.ninja API token (to be stored in a JSON which is the gitignore and thus never comitted/pushed)
+# entsoe_api_key = "" #your entsoe API token (to be stored in a JSON which is the gitignore and thus never comitted/pushed)
 # recommendation: use a JSON file called secrets.json, that is already in the gitignore and should thus be ignored by git
 
 
