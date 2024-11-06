@@ -4,4 +4,7 @@
 
 # The project is structured as follows:
 # * The main.py file is the entry point of the program and contains the main functions to run the optimization process.
-# Utility functions for retrieving data from Entso-e and Renewables.ninja
+# src/util contains utility functions for retrieving data from Entso-e and Renewables.ninja
+
+# for executing the code you need working API keys for Renewables.ninja and Entso-e. Also install the requirements by calling pip install -r requirements.txt
+# if you use additional packages please add that to the requirements file
