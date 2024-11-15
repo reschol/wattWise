@@ -7,7 +7,7 @@ from src.utils.entsoe_client import fetch_and_save_spot_prices
 
 # Define the API tokens
 # Personal renewables.ninja API token
-with open("secrets.json", "r") as f:
+with open(r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\secrets.json") as f:
     secrets = json.load(f)
 
 ninja_token = secrets.get("ninja_token")
@@ -42,25 +42,27 @@ def load_and_filter_dataframe(file_path, keyword, start, end):
 
     return filtered_df
 
-    return filtered_df
 
 def main():
+
     # Spot market data
     country_code = 'DE_LU'  # 'DE_LU' for 2018 - 2023 and 'DE_AT_LU' for < 2018
     spot_directory = 'data/entsoe_data/normal_hourly'
     start_date = '2019-01-01'
     end_date = '2019-12-31'
+
     #EntsoE API call
     fetch_and_save_spot_prices(entsoe_api_key, country_code, start_date, end_date, spot_directory)
     #Renewables Ninja API call
     solar_data = fetch_solar_data(ninja_token, 50.0, 8.0, '2021-01-01', '2021-12-31',1,0.1,90,180)
     print(solar_data)
+
     #Local Electricity Consumption Data
-    hh_path = 'local_input_data/1920 Final Data w. Additional Features HH Hourly Agg.pkl'
+    hh_path = r"wattWise\local_input_data\1920 Final Data w. Additional Features HH Hourly Agg.pkl"
     keyword = 'SFH'
     sfh_columns_df = load_and_filter_dataframe(hh_path, keyword, start_date, end_date)
     available_household_loads = sfh_columns_df
-    print(available_household_loads)
+    print("Those are available household loads:", available_household_loads)
 
 if __name__ == "__main__":
     main()
