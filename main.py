@@ -13,7 +13,7 @@ with open(r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\secrets.json
 ninja_token = secrets.get("ninja_token")
 entsoe_api_key = secrets.get("entsoe_api_key")
 
-print(ninja_token)
+#print(ninja_token)
 
 # ninja_token = "" #your renewables.ninja API token (to be stored in a JSON which is the gitignore and thus never comitted/pushed)
 # entsoe_api_key = "" #your entsoe API token (to be stored in a JSON which is the gitignore and thus never comitted/pushed)
