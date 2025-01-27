@@ -22,3 +22,13 @@ If you use additional packages please add that to the requirements file
 - [ ] Code schön schreiben mit Methoden
 
 
+## Code TODO
+- [ ] Define the missing variable. Replace with actual values. Momentan noch Daten aus 2024 VON Tibber
+  - consumption_dependent_fixed_costs = 19.71  # ct per KwH 2024 value Tibber - Example value, replace with actual value
+  - Consumption_independent_base_price = 15.73  # €/Monat - 2024 value Tibber - Example value, replace with actual value
+-  [ ] Predict the load using weighted averages. Hier noch mehr weights ausprobieren. Was ist das beste?  
+   -  Momentan: deferentiate between offseason and season
+      -  weight_offseason_twoweeks = 0.5
+      -  weight_offseason_SLP = 0.5
+      -  weight_twoweeks = 0.7
+      -  weight_SLP = 0.3
