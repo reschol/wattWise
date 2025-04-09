@@ -5,6 +5,12 @@ import json
 from src.utils.renewables_ninja import fetch_solar_data
 from src.utils.entsoe_client import fetch_and_save_spot_prices
 
+from pv_prediction import (
+    calculate_net_load_with_pv, 
+    load_solar_data_from_csv, 
+    get_solar_data_from_api
+)
+
 # Define the API tokens
 # Personal renewables.ninja API token
 with open(r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\secrets.json") as f:
@@ -45,6 +51,35 @@ def load_and_filter_dataframe(file_path, keyword, start, end):
 
 def main():
 
+    # PV Prediction
+    # Lade PV-Erzeugunggsdaten von Renewables.ninja API	
+    #Wenn DAtei schon existiert, dann lade sie von /data, wenn nicht, dann lade sie von der API und speichere sie in die Datei
+    if csv := 'data/renewables_ninja_data/pv_Karlsruhe_2020.csv':
+        try:
+            solar_df = load_solar_data_from_csv(csv)
+            print("Solar data loaded from CSV.")
+        except FileNotFoundError:
+            print("File not found, fetching from API.")
+            solar_df = get_solar_data_from_api(ninja_token, 50.0, 8.0, '2021-01-01', '2021-12-30', 0.8, 0.1, 90, 180)
+    
+     
+
+    
+
+    # Load Prediction mit MonteCarlo Simulation
+    
+
+
+    # Netload with PV
+    load_with_pv_df = calculate_net_load_with_pv(solar_df, load_df)
+
+
+
+
+
+
+
+
     # Spot market data
     country_code = 'DE_LU'  # 'DE_LU' for 2018 - 2023 and 'DE_AT_LU' for < 2018
     spot_directory = 'data/entsoe_data/normal_hourly'
@@ -53,11 +88,12 @@ def main():
 
     #EntsoE API call
     fetch_and_save_spot_prices(entsoe_api_key, country_code, start_date, end_date, spot_directory)
+    
     #Renewables Ninja API call
     solar_data = fetch_solar_data(ninja_token, 50.0, 8.0, '2021-01-01', '2021-12-31',1,0.1,90,180)
     print(solar_data)
 
-    #Local Electricity Consumption Data
+    #Local Electricity Consumption Data for Modelling
     hh_path = r"wattWise\local_input_data\1920 Final Data w. Additional Features HH Hourly Agg.pkl"
     keyword = 'SFH'
     sfh_columns_df = load_and_filter_dataframe(hh_path, keyword, start_date, end_date)
