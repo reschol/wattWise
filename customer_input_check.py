@@ -79,16 +79,42 @@ def filter_two_week_data(df_houshold_load_fullyear_model: pd.DataFrame, start_da
     return df
 
 #-------- 5. Give back one random household two week profile ------
-def get_random_household_profile(df: pd.DataFrame) -> pd.Series:
+def get_household_profile(df: pd.DataFrame, hh: str) -> pd.DataFrame:
     """
-    Get a random household profile from the DataFrame.
+    Get the household profile  of household hh from the DataFrame and rename the column to 'Load' and 'Time.
     
     Args:
-        df: two-week DataFrame from all households..
-
+        df: two-week DataFrame from all households (columns = households, index = datetime).
+        
     Returns:
-        Series containing the load profile of a random household.
+        DataFrame with datetime index and a single column 'Load'.
     """
-    # Select a random column (household)
-    random_household = df.sample(axis=1, n=1).iloc[:, 0]
-    return random_household
+    # Wähle Spalte (Haushalt) und erstelle DataFrame
+    df = df.copy()
+    one_houshold_df = df[hh]
+
+    # Wähle nur die entsprechende Haushaltsspalte als DataFrame
+    one_household_df = df[[hh]].rename(columns={hh: 'Load'})
+
+    # Setze den Index zurück und benenne die Zeitspalte um
+    one_household_df = one_household_df.reset_index()
+    one_household_df.rename(columns={'index': 'Time'}, inplace=True)
+
+    # Falls die Spalte fälschlich 'date' heißt
+    if 'date' in one_household_df.columns:
+        one_household_df.rename(columns={'date': 'Time'}, inplace=True)
+
+    return one_household_df
+
+    # Spaltennamen umbenennen auf 'Load'
+    one_houshold_df = one_houshold_df.rename(hh, 'Load')
+    # Spalte in DataFrame umwandeln
+    one_houshold_df = one_houshold_df.to_frame()
+    # Index zurücksetzen und 'Time' umbenennen
+
+    one_houshold_df = one_houshold_df.reset_index()
+    one_houshold_df.rename(columns={'index': 'Time'}, inplace=True)
+
+    if 'date' in one_houshold_df.columns:
+        one_houshold_df.rename(columns={'date': 'Time'}, inplace=True)
+    return one_houshold_df

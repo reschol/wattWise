@@ -79,7 +79,7 @@ df_standard_load_profile_2019['Seasonal Factor'] = df_standard_load_profile_2019
 
 
 # ------ Zwei Wochen Kundenverbrauch für 2020 (stündlich) -- hier ggf. Input ändern #TODO
-#--a) Input #TODO
+#--a) Input #TODOsiehe customer_input_check.py
 
 #--b) Funktion, die aus einem DataFrame mit Zeitstempeln und Lastwerten Dictionary erzeugt, das Wochentage als Keys und Listen von Tagesprofilen (DataFrames mit 24 Stunden) als Values enthält.
 def build_weekday_profile_dict(df: pd.DataFrame, timestamp_col: str = 'Time', load_col: str = 'Load') -> dict:
