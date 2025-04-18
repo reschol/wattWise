@@ -31,7 +31,7 @@ def fill_missing_hours(df: pd.DataFrame, time_col: str = "Time", value_cols: lis
     # Generiere kompletten Stundenindex für das Jahr
     start = f"{year}-01-01 00:00"
     end = f"{year}-12-31 23:00"
-    full_index = pd.date_range(start=start, end=end, freq="H")
+    full_index = pd.date_range(start=start, end=end, freq="h")
 
     # Bestimme Spalten
     if value_cols is None:
