@@ -1,4 +1,5 @@
 # This minimal example on how to retrieve data from the apis
+import random
 import pandas as pd
 import json
 
@@ -9,6 +10,24 @@ from pv_prediction import (
     calculate_net_load_with_pv, 
     load_solar_data_from_csv, 
     get_solar_data_from_api
+)
+
+from montecarlo import (
+    fill_missing_hours,
+    build_weekday_profile_dict,
+    generate_random_yearly_profile,
+    monte_carlo_simulation_load_profiles,
+    calculate_seasonal_factor_per_x,
+    apply_seasonal_factors,
+    scale_load_profile_to_annual_consumption
+)
+
+from customer_input_check import (
+    load_pickle_to_dataframe,
+    filter_time_range,
+    prepare_household_data,
+    filter_two_week_data,
+    get_random_household_profile,
 )
 
 # Define the API tokens
@@ -50,8 +69,38 @@ def load_and_filter_dataframe(file_path, keyword, start, end):
 
 
 def main():
+    # ----1. Load the Customer data -----
+    hh_path = r"local_input_data\1920 Final Data w. Additional Features HH Hourly Agg.pkl"
+    start_2019 = '2019-01-01'
+    end_2019 = '2019-12-31'
+    start_2020 = '2020-01-01'
+    end_2020 = '2020-12-31'
+    keyword = 'SFH' # Single Family Households
+    exclude = ['SFH34_P_TOT'] # weird profile, not usable
 
-    # PV Prediction
+    data_allhouseholds = load_pickle_to_dataframe(hh_path)
+    data_2019 = filter_time_range(data_allhouseholds, start_2019, end_2019)
+    sfh_2019 = prepare_household_data(data_2019, keyword=keyword, exclude_columns=exclude)
+    #data_2020 = filter_time_range(data_allhouseholds, start_2020, end_2020)
+    #sfh_2020 = prepare_household_data(data_2020, keyword=keyword, exclude_columns=exclude)
+    
+    print("Those are the available household loads in 2019:")
+    print(sfh_2019.head())
+    #--a) Filter the data for a two-week period in 2019
+    random_start_date = random.choice(pd.date_range(pd.Timestamp(start_2019), pd.Timestamp(end_2019) - pd.Timedelta(days=14), tz='UTC'))
+    random_end_date = random_start_date + pd.Timedelta(days=14)
+
+    two_week_data = filter_two_week_data(sfh_2019, random_start_date, random_end_date)
+    print("Filtered two-week data:", two_week_data)
+    random_household_two_week = get_random_household_profile(two_week_data)
+
+    print("Random household profile for two weeks:", random_household_two_week)
+
+    #-----2. Load Prediction mit MonteCarlo Simulation
+    
+
+    
+    #-----3. PV Prediction
     # Lade PV-Erzeugunggsdaten von Renewables.ninja API	
     #Wenn DAtei schon existiert, dann lade sie von /data, wenn nicht, dann lade sie von der API und speichere sie in die Datei
     if csv := 'data/renewables_ninja_data/pv_Karlsruhe_2020.csv':
@@ -64,14 +113,12 @@ def main():
     
      
 
-    
 
-    # Load Prediction mit MonteCarlo Simulation
     
 
 
     # Netload with PV
-    load_with_pv_df = calculate_net_load_with_pv(solar_df, load_df)
+    #load_with_pv_df = calculate_net_load_with_pv(solar_df, load_df)
 
 
 
