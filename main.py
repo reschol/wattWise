@@ -1,5 +1,6 @@
 # This minimal example on how to retrieve data from the apis
 import random
+from matplotlib import pyplot as plt
 import pandas as pd
 import json
 
@@ -27,6 +28,10 @@ from customer_input_check import (
     prepare_household_data,
     filter_two_week_data,
     get_household_profile,
+)
+from evaluation import (
+    calculate_nmae_load_forecast_to_actual_load_hourly,
+    get_actual_data_from_household_data
 )
 
 # Define the API tokens
@@ -57,15 +62,15 @@ sfh_2019 = prepare_household_data(data_2019, keyword=keyword, exclude_columns=ex
 #data_2020 = filter_time_range(data_allhouseholds, start_2020, end_2020)
 #sfh_2020 = prepare_household_data(data_2020, keyword=keyword, exclude_columns=exclude)
     
-print("Those are the available household loads in 2019:")
-print(sfh_2019.head())
+#print("Those are the available household loads in 2019:")
+#print(sfh_2019.head())
 
 #--a) Filter the data for a two-week period in 2019
 #random_start_date = random.choice(pd.date_range(pd.Timestamp(start_2019), pd.Timestamp(end_2019) - pd.Timedelta(days=14), tz='UTC'))
 #random_end_date = random_start_date + pd.Timedelta(days=14)
 random_start_date = '2019-01-01 00:00:00+00:00' #TODO : random choice
 random_end_date = '2019-01-15 00:00:00+00:00' #TODO : random choice
-testhousehold = 'SFH4_P_TOT' #TODO: alle HH 
+testhousehold = 'SFH7_P_TOT' #TODO: alle HH 
 
 two_week_data = filter_two_week_data(sfh_2019, random_start_date, random_end_date)
 print("Filtered two-week data:", two_week_data)
@@ -118,6 +123,19 @@ def fill_missing_hours(df: pd.DataFrame, time_col: str = "Time", value_cols: lis
 
     return df_full
 
+#--c) Actual Load Daten Laden
+#TODO: Start date
+#TODO: End date
+#TODO: Funktion answenden actual_load_household = get_actual_data_from_household_data(sfh_2019, actual_start_date, actual_end_date, load_col='SFH7_P_TOT')
+#TODO: nächste Zeile löschen
+actual_load = pd.read_csv(r'D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\test_data_actual_load_profile_2020.csv', sep=';', index_col='date')
+#only SFH7_P_TOT
+actual_load_household = actual_load[['SFH7_P_TOT']]
+actual_load_household.index = pd.to_datetime(actual_load_household.index)
+actual_load_household.index = actual_load_household.index.tz_convert(None)
+
+
+
 #Anpassen
 df_standard_load_profile_2019.drop(columns=['Messwert-Nr.','MP von', 'MP bis'], inplace=True)
 df_standard_load_profile_2019['Time'] = df_standard_load_profile_2019['Zeitstempel von'].dt.floor('h') #Fasse Zeitstempel pro Stunde zusammen und summiere H00 [kW] in neuer df
@@ -135,13 +153,58 @@ df_standard_load_profile_2019['Seasonal Factor'] = df_standard_load_profile_2019
 
 def main():
     
-    #-----2. Load Prediction mit MonteCarlo Simulation
+    #-----2. Load Prediction mit MonteCarlo Simulation EINES einzelnen Haushalts (random_household_two_week)
     weekday_profile_dict = build_weekday_profile_dict(random_household_two_week, timestamp_col='Time', load_col='Load')
     simulations = monte_carlo_simulation_load_profiles(weekday_profile_dict, 2020, 100)
     seasonal_factor = calculate_seasonal_factor_per_x(df_standard_load_profile_2019, x ="Month")
     adjusted_simulations = apply_seasonal_factors(simulations, seasonal_factor, by='Month')
     final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, 3000) #TODO: 3000 kWh/a is the average consumption of a single family household in Germany. This should be an input parameter.
     
+    plt.figure(figsize=(12, 6))
+    for i, sim in enumerate(final_simulations):
+        first_24h = sim.head(168)
+        plt.plot(first_24h.index, first_24h['Load'], alpha=0.2, linewidth=1)
+
+    plt.title("First 24 Hours of 100 Simulated Load Profiles")
+    plt.xlabel("Time")
+    plt.ylabel("Load [kWh]")
+    plt.xticks(rotation=45)
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    
+    #-----2b. Load Prediction Evaluation TODO PRICE
+    #NMAE
+    nmae_load_list = []
+    #nmae_price_list = []
+    for i in range(len(final_simulations)):
+        #Wenn Jahr SChaltjahr, dann bei Forecast letzten 24 Stunden entfernen
+        #TODO: Schaltjahr berücksichtigen
+
+        final_simulations[i] = final_simulations[i][:-24] #remove last 24 hours of the forecast, because they are not in the actual load data
+        #print("Simulation", i, "NMAE:", calculate_nmae_load_forecast_to_actual_load_hourly(final_simulations[i], actual_load_household, load_forecast_col='Load', actual_load_col='SFH7_P_TOT'))
+        nmae_load = calculate_nmae_load_forecast_to_actual_load_hourly(final_simulations[i], actual_load_household, load_forecast_col='Load', actual_load_col='SFH7_P_TOT')
+        #Liste mit NMAE Werten erstellen
+        nmae_load_list.append(nmae_load)
+
+        #nmae_price = calculate_nmae_price
+        #nmae_price_list.append(nmae_price)
+
+        
+    print("Mean NMAE:", sum(nmae_load_list)/len(nmae_load_list))
+    print("Standard Deviation NMAE:", pd.Series(nmae_load_list).std())    
+
+    #print("Mean NMAE Price:", sum(nmae_price_list)/len(nmae_price_list))
+    #print("Standard Deviation NMAE Price:", pd.Series(nmae_price_list).std())
+    
+   
+
+        
+
+
+
+
     #-----3. PV Prediction
     # Lade PV-Erzeugunggsdaten von Renewables.ninja API	
     #Wenn DAtei schon existiert, dann lade sie von /data, wenn nicht, dann lade sie von der API und speichere sie in die Datei
