@@ -19,7 +19,12 @@ from montecarlo import (
     monte_carlo_simulation_load_profiles,
     calculate_seasonal_factor_per_x,
     apply_seasonal_factors,
-    scale_load_profile_to_annual_consumption
+    scale_load_profile_to_annual_consumption,
+    load_spot_market_prices,
+    calculate_dynamic_price_with_fees,
+    get_fixed_price_per_kwh,
+    calculate_annual_dynamic_costs,
+    calculate_annual_static_costs
 )
 
 from customer_input_check import (
@@ -148,7 +153,12 @@ df_standard_load_profile_2019 = fill_missing_hours(df=df_agg, time_col='Time', v
 df_standard_load_profile_2019['Normalized Load'] = df_standard_load_profile_2019['H00 [kWh]'] /df_standard_load_profile_2019['H00 [kWh]'].sum()*3000 #TODO WOZU??
 df_standard_load_profile_2019['Seasonal Factor'] = df_standard_load_profile_2019['Normalized Load'] / df_standard_load_profile_2019['Normalized Load'].mean() #Save an seaonality index for each hour on a annual mean of 1.0 #TODO: Kritisch hinterfragen
 
-
+#--d) Load Spot Market Prices
+country_code = 'DE_LU'  # 'DE_LU' for 2018 - 2023 and 'DE_AT_LU' for < 2018
+spot_directory = 'data/entsoe_data/normal_hourly' #wenn daten bereits abgefragt wurden, sonst über API
+entsoe_api_key = secrets.get("entsoe_api_key")
+#EntsoE API call
+#fetch_and_save_spot_prices(entsoe_api_key, country_code, start_date, end_date, spot_directory)
 
 
 def main():
@@ -171,10 +181,18 @@ def main():
     plt.xticks(rotation=45)
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    #plt.show()
+
+    #-----3. Electricity Price Integration
+    df_spot_data_requested = load_spot_market_prices(start_2020, end_2020, country_code, spot_directory)
+    df_dynamic_price = calculate_dynamic_price_with_fees(df_spot_data_requested, start_2020, end_2020)
+
+    #HIER HAB ICH AUFGEHÖRT!!
+
+
 
     
-    #-----2b. Load Prediction Evaluation TODO PRICE
+    #-----2 und 3 b. Load Prediction Evaluation #TODO PRICE EVALUATION
     #NMAE
     nmae_load_list = []
     #nmae_price_list = []

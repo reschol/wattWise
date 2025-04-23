@@ -82,4 +82,26 @@ def calculate_nmae_load_forecast_to_actual_load_hourly(
     print(abs(absolute_errors).sum(), actual_series.abs().sum())
     return nmae
 
+def calculate_nmae_dynmic_price_forecast_actual(
+        load_forecast: pd.DataFrame,
+        actual_load: pd.DataFrame,
+        dynamic_price: pd.DataFrame,
+        load_forecast_col: str = 'Load',
+        actual_load_col: str = 'Load',
+        dynamic_price_col: str = 'DynamicPrice'
+):    """
+    Calculates the Normalized Mean Absolute Error (NMAE) between forecast and actual load with dynamic price.
 
+    Parameters:
+        load_forecast (pd.DataFrame): DataFrame with datetime index and forecast values in 'load_forecast_col'.
+        actual_load (pd.DataFrame): DataFrame with datetime index and actual values in 'actual_load_col'.
+        dynamic_price (pd.DataFrame): DataFrame with datetime index and dynamic price values in 'dynamic_price_col'.
+        load_forecast_col (str): Name of the forecast column. Default is 'Load'.
+        actual_load_col (str): Name of the actual load column. Default is 'Load'.
+        dynamic_price_col (str): Name of the dynamic price column. Default is 'DynamicPrice'.
+
+    Returns:
+        float: NMAE in percent (%), based on sum-normalized absolute error.
+    """
+
+    # Extract Series, ensuring they are in the correct format

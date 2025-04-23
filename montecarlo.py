@@ -280,3 +280,192 @@ def scale_load_profile_to_annual_consumption(df: list, annual_consumption: float
         scaled_profiles.append(profile)
 
     return scaled_profiles
+
+
+# -------------3. Dynamische Preise integrieren------------------
+#--a) Dynamische Preise laden (stündlich)
+def load_spot_market_prices(
+    start_date: str,
+    end_date: str,
+    country_code: str = 'DE_LU',
+    data_dir: str = 'data/entsoe_data/normal_hourly',
+) -> pd.DataFrame:
+    """
+    Lädt und konvertiert Spotmarktpreise (€/MWh → ct/kWh) für einen gegebenen Zeitraum.
+
+    Args:
+        start_date (str): Startdatum im Format 'YYYY-MM-DD'.
+        end_date (str): Enddatum im Format 'YYYY-MM-DD'.
+        country_code (str): Ländercode für die Datei (z. B. 'DE_LU'). 'DE_LU' for 2018 - 2023 and 'DE_AT_LU' for < 2018
+        data_dir (str): Pfad zum Speicherort der CSV-Dateien.
+        show_summary (bool): Gibt den Durchschnittspreis aus, wenn True.
+
+    Returns:
+        pd.DataFrame: Gefilterte Spotmarktdaten mit datetime-index und Spalte 'Price ct/KWH'.
+    """
+    start = pd.to_datetime(start_date)
+    end = pd.to_datetime(end_date)
+
+    # Ermittle alle Jahre im Zeitraum
+    years = list(range(start.year, end.year + 1))
+    dfs = []
+
+    for year in years:
+        file_path = f"{data_dir}/Spot_prices_{country_code}_{year}.csv"
+        try:
+            df = pd.read_csv(
+                file_path,
+                delimiter=';',
+                decimal=',',
+                parse_dates=['Date (CET)'],
+                dayfirst=True
+            )
+            df['Price ct/KWH'] = df['Price (€/MWh)'] / 1000 * 100
+            df.set_index('Time', inplace=True)
+            dfs.append(df[['Price ct/KWH']])
+        except FileNotFoundError:
+            print(f"Datei nicht gefunden: {file_path}")
+
+    if not dfs:
+        print("Keine Daten geladen.")
+        return pd.DataFrame()
+
+    # Alle Jahre zusammenfügen
+    full_df = pd.concat(dfs)
+
+    # Nach Zeitraum filtern
+    full_df = full_df.loc[start:end]
+
+    return full_df
+
+
+def calculate_dynamic_price_with_fees(
+    spot_prices: pd.DataFrame,
+    start_date: str,
+    end_date: str,
+    price_col: str = 'Price ct/KWH',
+    consumption_dependent_fixed_costs: float = 19.71,  # ct/kWh
+) -> pd.DataFrame:
+    """
+    Berechnet den dynamischen Strompreis (€/kWh) für einen gegebenen Zeitraum
+    auf Basis von Spotmarktpreisen und zusätzlichen Kosten.
+
+    Args:
+        spot_prices (pd.DataFrame): Spotpreise mit Zeitindex und Spalte in ct/kWh.
+        start_date (str): Startdatum im Format 'YYYY-MM-DD'.
+        end_date (str): Enddatum im Format 'YYYY-MM-DD'.
+        price_col (str): Name der Preisspalte in ct/kWh.
+        consumption_dependent_fixed_costs (float): Aufschlag in ct/kWh.
+        base_price_per_month (float): Grundpreis in €/Monat.
+
+    Returns:
+        pd.DataFrame: DataFrame mit Spalte 'Dynamic Price €/kWh' für den Zeitraum.
+    """
+
+    # Sicherstellen, dass der Index datetime ist
+    spot_prices = spot_prices.copy()
+    spot_prices.index = pd.to_datetime(spot_prices.index)
+
+    # Zeitraum filtern
+    start = pd.to_datetime(start_date)
+    end = pd.to_datetime(end_date)
+    df_period = spot_prices.loc[start:end]
+
+    if df_period.empty:
+        print(f"Keine Spotpreise im Zeitraum {start_date} bis {end_date} gefunden.")
+        return pd.DataFrame()
+
+    # Umrechnung ct/kWh → €/kWh mit Verbrauchsaufschlag
+    df_period['Dynamic Price €/kWh'] = (df_period[price_col] + consumption_dependent_fixed_costs) / 100
+
+    return df_period[['Dynamic Price €/kWh']]
+
+def get_fixed_price_per_kwh(
+    year: int,
+    csv_path: str = 'data/electricity_prices_yearly/electricity_prices_yearly2014_2024.csv',
+    price_col: str = 'Summe'
+) -> float:
+    """
+    Extrahiert den festen Strompreis (€/kWh) für ein bestimmtes Jahr aus einer CSV-Datei.
+
+    Args:
+        year (int): Zieljahr (z. B. 2020)
+        csv_path (str): Pfad zur CSV-Datei mit jährlichen Preisen (in ct/kWh)
+        price_col (str): Spaltenname mit Gesamtpreis (in ct/kWh)
+
+    Returns:
+        float: Fixpreis in €/kWh
+    """
+    try:
+        df = pd.read_csv(csv_path, delimiter=',', decimal='.', parse_dates=['Year'])
+        df['Year'] = df['Year'].dt.year
+    except Exception as e:
+        print(f"Fehler beim Laden der Datei: {e}")
+        return float('nan')
+
+    if year not in df['Year'].values:
+        print(f"Kein Eintrag für das Jahr {year} in der Datei.")
+        return float('nan')
+
+    # Preis in €/kWh umrechnen (aus ct/kWh)
+    fixed_price_ct = df.loc[df['Year'] == year, price_col].values[0]
+    fixed_price_eur = fixed_price_ct / 100
+
+    return fixed_price_eur
+
+
+def calculate_annual_dynamic_costs(df_load_profile, df_dynamic_price, dynamic_base_price_per_month = 15.73, load_col='Load', price_col='Dynamic Price €/kWh'):
+    """
+    Berechnet die jährlichen Kosten basierend auf dem Lastprofil und den dynamischen Preisen.
+   
+
+    Args:
+        df_load_profile (pd.DataFrame): DataFrame mit Lastprofil und Zeitindex.
+        df_dynamic_price (pd.DataFrame): DataFrame mit dynamischen Preisen und Zeitindex.
+        dynamic_base_price_per_month (float): Monatlicher Grundpreis in €/Monat. Default: 15.73 # € / Monat #TODO 2024 value Tibber - Example value, replace with actual value
+
+
+        load_col (str): Name der Lastspalte. Default: 'Load'.
+        price_col (str): Name der Preisspalte. Default: 'Dynamic Price €/kWh'.
+
+    Returns:
+        float: Jährliche Kosten in Euro.
+    """
+    # Sicherstellen, dass die Indizes übereinstimmen
+    df_load_profile.index = pd.to_datetime(df_load_profile.index)
+    if df_load_profile.index.tz is not None:
+        df_load_profile.index = df_load_profile.index.tz_convert(None)
+
+    df_dynamic_price.index = pd.to_datetime(df_dynamic_price.index)
+    if df_dynamic_price.index.tz is not None:
+        df_dynamic_price.index = df_dynamic_price.index.tz_convert(None)
+
+    if not df_load_profile.index.equals(df_dynamic_price.index):
+        print("Zeitachsen stimmen nicht überein!")
+        print(f"- df_load_profile:type = {type(df_load_profile.index)}, dtype = {df_load_profile.index.dtype}, tz = {df_load_profile.index.tz}")
+        print(f"- df_dynamic_price:type = {type(df_dynamic_price.index)}, dtype = {df_dynamic_price.index.dtype}, tz = {df_dynamic_price.index.tz}")
+    else:
+        print("Indices sind identisch!")
+
+    # Berechnung der jährlichen Kosten
+    annual_costs = ((df_load_profile[load_col] * df_dynamic_price[price_col]).sum(axis=0)) + dynamic_base_price_per_month*12
+    return annual_costs
+
+    
+def calculate_annual_static_costs(df_load_profile, static_price_per_kwh, load_col='Load', price_col='Static Price €/kWh'):
+    """
+    Berechnet die jährlichen Kosten basierend auf dem Lastprofil und den statischen Preisen.
+    
+    Args:
+        df_load_profile (pd.DataFrame): DataFrame mit Lastprofil und Zeitindex.
+        static_price_per_kwh (float): Statischer Preis in €/kWh.
+        load_col (str): Name der Lastspalte. Default: 'Load'.
+        price_col (str): Name der Preisspalte. Default: 'Static Price €/kWh'.
+
+    Returns:
+        float: Jährliche Kosten in Euro.
+    """
+    
+    annual_costs = (df_load_profile[load_col].sum(axis=0) * static_price_per_kwh[price_col])
+
+    return annual_costs
