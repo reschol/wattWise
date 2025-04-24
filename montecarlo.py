@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import random
+import pickle
+import os
 
 # ---- 1. Load Data  ----
 # Standard-Lastprofil für 2019 (stündlich)
@@ -473,3 +475,38 @@ def calculate_annual_static_costs(df_load_profile, static_price_per_kwh, load_co
     annual_costs = (df_load_profile[load_col].sum(axis=0) * static_price_per_kwh[price_col])
 
     return annual_costs
+
+def load_or_run_simulation(household_col, profile_dict, year, n_simulations):
+    """
+    Lädt gespeicherte Monte-Carlo-Simulationen für einen Haushalt aus einem Cache-Ordner,
+    oder führt die Simulation neu aus, wenn noch kein Ergebnis vorhanden ist.
+
+    Args:
+        household_col (str): Der Name der Haushaltsspalte, z. B. 'SFH4_P_TOT'
+        profile_dict (dict): Weekday-Profil des Haushalts (Ergebnis von build_weekday_profile_dict)
+        year (int): Jahr der Simulation (z. B. 2020)
+        n_simulations (int): Anzahl der zu generierenden Simulationsläufe
+
+    Returns:
+        list of pd.DataFrame: Liste mit simulierten Lastprofilen (z. B. 100 DataFrames)
+    """
+
+    # Pfad zur Cache-Datei definieren (z. B. simulations_cache/SFH4_P_TOT_simulations.pkl)
+    cache_path = f"simulations_cache/{household_col}_simulations.pkl"
+    
+    # Prüfen, ob Cache-Datei bereits existiert
+    if os.path.exists(cache_path):
+        # Falls ja: Lade die Simulationen aus der Datei
+        with open(cache_path, "rb") as f:
+            print(f"→ Loaded cached simulations for {household_col}")
+            return pickle.load(f)
+    else:
+        # Falls nein: Starte neue Monte-Carlo-Simulation
+        print(f"→ Running new simulations for {household_col} ...")
+        simulations = monte_carlo_simulation_load_profiles(profile_dict, year, n_simulations)
+
+        # Speichere die Simulationen für späteres Wiederverwenden
+        with open(cache_path, "wb") as f:
+            pickle.dump(simulations, f)
+        
+        return simulations

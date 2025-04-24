@@ -25,7 +25,8 @@ from montecarlo import (
     calculate_dynamic_price_with_fees,
     get_fixed_price_per_kwh,
     calculate_annual_dynamic_costs,
-    calculate_annual_static_costs
+    calculate_annual_static_costs,
+    load_or_run_simulation
 )
 
 from customer_input_check import (
@@ -165,119 +166,108 @@ entsoe_api_key = secrets.get("entsoe_api_key")
 def main():
     global country_code, spot_directory
 
-    #-----2. Load Prediction mit MonteCarlo Simulation EINES einzelnen Haushalts (random_household_two_week)
-    weekday_profile_dict = build_weekday_profile_dict(random_household_two_week, timestamp_col='Time', load_col='Load')
-    simulations = monte_carlo_simulation_load_profiles(weekday_profile_dict, 2020, 100)
-    seasonal_factor = calculate_seasonal_factor_per_x(df_standard_load_profile_2019, x ="Month")
-    adjusted_simulations = apply_seasonal_factors(simulations, seasonal_factor, by='Month')
-    final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, 3000) #TODO: 3000 kWh/a is the average consumption of a single family household in Germany. This should be an input parameter.
-    
-    plt.figure(figsize=(12, 6))
-    hours = 720 # 24 hours * 7 days = 168 hours
-    
-    for i, sim in enumerate(final_simulations):
-        index_profile = sim.head(hours)
-        plt.plot(index_profile.index, index_profile['Load'], alpha=0.2, linewidth=1)
-    actual_slice = actual_load_household.loc[actual_load_household.index[:hours]]
-    plt.plot(actual_slice.index, actual_slice[testhousehold], color='red', label='Actual Load', linewidth= 1)
-    plt.title(f"First {hours} Hours of 100 Simulated Load Profiles")
-    plt.xlabel("Time")
-    plt.ylabel("Load [kWh]")
-    plt.xticks(rotation=45)
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-    hours2 = 168 # 24 hours * 7 days = 168 hours
-    
-    for i, sim in enumerate(final_simulations):
-        index_profile = sim.head(hours2)
-        plt.plot(index_profile.index, index_profile['Load'], alpha=0.2, linewidth=1)
-    actual_slice = actual_load_household.loc[actual_load_household.index[:hours2]]
-    plt.plot(actual_slice.index, actual_slice[testhousehold], color='red', label='Actual Load', linewidth=1)
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%d.%m %H:%M'))
-    plt.gcf().autofmt_xdate()  # automatische Rotation & Format
-    plt.title(f"First {hours2} Hours of 100 Simulated Load Profiles")
-    plt.xlabel("Time")
-    plt.ylabel("Load [kWh]")
-    plt.xticks(rotation=45)
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-    #-----3. Electricity Price Integration
+    # Load dynamic electricity price
     df_spot_data_requested = load_spot_market_prices(start_2020, end_2020, country_code, spot_directory)
     df_dynamic_price = calculate_dynamic_price_with_fees(df_spot_data_requested, start_2020, end_2020)
 
-    simulations_annual_dynamic_costs = []
-    for i in range(len(final_simulations)):
-        annual_dynamic_costs = calculate_annual_dynamic_costs(final_simulations[i], df_dynamic_price, load_col='Load')
-        simulations_annual_dynamic_costs.append(annual_dynamic_costs)
-        #print("Simulation", i, "Annual Dynamic Costs:", annual_dynamic_costs)
+    # Datenstruktur vorbereiten
+    all_simulated_costs = []
+    actual_costs = []
+    household_labels = []
+    household_nmae_means = []
+    household_nmae_stds = []
 
-    actual_dynamic_costs = calculate_annual_dynamic_costs(actual_load_household, df_dynamic_price, load_col=testhousehold)
+    for household_col in sfh_2019.columns:
+        print(f"Processing: {household_col}")
 
-    #Plot annual dynamic costs of all simulations as a histogram
-    mean_cost = np.mean(simulations_annual_dynamic_costs)
-    std_cost = np.std(simulations_annual_dynamic_costs)
-    stats_text = f"Simulation Average: {mean_cost:.2f} €\nStd. Deviation: {std_cost:.2f} €\n Actual: {actual_dynamic_costs:.2f} €"
-    plt.figure(figsize=(12, 4))
-    plt.boxplot(simulations_annual_dynamic_costs, vert=False, patch_artist=True,
-                boxprops=dict(facecolor='lightblue', color='blue'),
-                medianprops=dict(color='black'),
-                whiskerprops=dict(color='blue'),
-                capprops=dict(color='blue'),
-                flierprops=dict(marker='o', markerfacecolor='blue', markersize=5, linestyle='none'))
-    plt.axvline(x=actual_dynamic_costs, color='red', linestyle='--', linewidth=2, label=f'Actual = {actual_dynamic_costs:.2f} €')
-    plt.title("Annual Dynamic Costs of 100 Simulated Load Profiles of Household " + testhousehold)
+        # 2-Wochen-Profil + Monte Carlo Simulation
+        two_week_data = filter_two_week_data(sfh_2019, random_start_date, random_end_date)
+        random_household_two_week = get_household_profile(two_week_data, household_col)
+
+        weekday_profile_dict = build_weekday_profile_dict(random_household_two_week, timestamp_col='Time', load_col='Load')
+        simulations = load_or_run_simulation(household_col, weekday_profile_dict, 2020, 100)# Lade simulierte Lastprofile aus Cache (wenn vorhanden), oder führe neue Monte-Carlo-Simulation durch #TODO: Jahr unabhängig machen
+        seasonal_factor = calculate_seasonal_factor_per_x(df_standard_load_profile_2019, x="Month")
+        adjusted_simulations = apply_seasonal_factors(simulations, seasonal_factor, by='Month')
+        final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, 3000)
+
+        # Load actual values
+        actual_load_household = actual_load[[household_col]]
+        actual_load_household.index = pd.to_datetime(actual_load_household.index)
+        actual_load_household.index = actual_load_household.index.tz_convert(None)
+
+        #Plot mit Details für einen spezifischen Haushalt
+        if household_col == "x": #TODO: x durch den gewünschten Haushalt ersetzen, wenn Plot gewünscht ist
+            plt.figure(figsize=(12, 6))
+            hours = 720  # 30 Tage
+            for sim in final_simulations:
+                index_profile = sim.head(hours)
+                plt.plot(index_profile.index, index_profile['Load'], alpha=0.2, linewidth=1)
+            actual_slice = actual_load_household.loc[actual_load_household.index[:hours]]
+            plt.plot(actual_slice.index, actual_slice[household_col], color='red', label='Actual Load', linewidth=1)
+            plt.title(f"First {hours} Hours of 100 Simulated Load Profiles – {household_col}")
+            plt.xlabel("Time")
+            plt.ylabel("Load [kWh]")
+            plt.xticks(rotation=45)
+            plt.grid(True)
+            plt.legend()
+            plt.tight_layout()
+            plt.show()
+
+        # Berechne Kosten
+        sim_costs = [
+            calculate_annual_dynamic_costs(sim, df_dynamic_price, load_col='Load') for sim in final_simulations
+        ]
+        actual_cost = calculate_annual_dynamic_costs(actual_load_household, df_dynamic_price, load_col=household_col)
+
+        # Berechne NMAE
+        nmae_load_list = []
+        for sim in final_simulations:
+            sim = sim[:-24]  # Letzte 24h entfernen
+            nmae = calculate_nmae_load_forecast_to_actual_load_hourly(sim, actual_load_household,
+                                                                       load_forecast_col='Load',
+                                                                       actual_load_col=household_col)
+            nmae_load_list.append(nmae)
+
+        household_nmae_means.append(np.mean(nmae_load_list))
+        household_nmae_stds.append(np.std(nmae_load_list))
+
+        # Speichern
+        all_simulated_costs.append(sim_costs)
+        actual_costs.append(actual_cost)
+        household_labels.append(household_col)
+    
+    #Boxplot
+    plt.figure(figsize=(15, len(household_labels) * 0.5 + 3))
+    bplot = plt.boxplot(all_simulated_costs, vert=False, patch_artist=True,
+                        boxprops=dict(facecolor='lightblue'),
+                        medianprops=dict(color='black'))
+    for i, cost in enumerate(actual_costs):
+        plt.plot(cost, i + 1, 'rD', label='Actual' if i == 0 else "")  # nur 1x label
+    plt.yticks(ticks=np.arange(1, len(household_labels) + 1), labels=household_labels)
     plt.xlabel("Annual Dynamic Costs [€]")
-    plt.yticks([])  # y-Achse ausblenden
+    plt.title("Annual Dynamic Cost Distribution – All Households")
     plt.grid(axis='x', alpha=0.3)
-    plt.legend()
-    plt.text(0.98, 0.95, stats_text,
-            transform=plt.gca().transAxes,
-            fontsize=10,
-            verticalalignment='top',
-            horizontalalignment='right',
-            bbox=dict(facecolor='lightgray', edgecolor='black', boxstyle='round,pad=0.5'))
+    plt.legend(loc='upper right')
     plt.tight_layout()
     plt.show()
+    
+    #Zusammenfassung der NMAE-Werte
+    nmae_summary = pd.DataFrame({
+        "Household": household_labels,
+        "Mean NMAE": household_nmae_means,
+        "Std NMAE": household_nmae_stds
+    })
+    print("\n--- NMAE Summary ---")
+    print(nmae_summary.round(4))
+    print("\nOverall Mean NMAE:", np.mean(household_nmae_means))
+    print("Overall Std NMAE:", np.std(household_nmae_means))
+    
+    
 
     
-    #-----2 und 3 b. Load Prediction Evaluation #TODO PRICE EVALUATION, geht aber erst mit mehreren Haushalten
-    #NMAE
-    nmae_load_list = []
-    #nmae_price_list = []
-    for i in range(len(final_simulations)):
-        #Wenn Jahr SChaltjahr, dann bei Forecast letzten 24 Stunden entfernen
-        #TODO: Schaltjahr berücksichtigen
 
-        final_simulations[i] = final_simulations[i][:-24] #remove last 24 hours of the forecast, because they are not in the actual load data
-        #print("Simulation", i, "NMAE:", calculate_nmae_load_forecast_to_actual_load_hourly(final_simulations[i], actual_load_household, load_forecast_col='Load', actual_load_col=testhousehold))
-        nmae_load = calculate_nmae_load_forecast_to_actual_load_hourly(final_simulations[i], actual_load_household, load_forecast_col='Load', actual_load_col=testhousehold)
-        #Liste mit NMAE Werten erstellen
-        nmae_load_list.append(nmae_load)
-
-        #nmae_price = calculate_nmae_price
-        #nmae_price_list.append(nmae_price)
-
-        
-    print("Mean NMAE:", sum(nmae_load_list)/len(nmae_load_list))
-    print("Standard Deviation NMAE:", pd.Series(nmae_load_list).std())    
-
-    #print("Mean NMAE Price:", sum(nmae_price_list)/len(nmae_price_list))
-    #print("Standard Deviation NMAE Price:", pd.Series(nmae_price_list).std())
-    
-   
-
-        
-
-
-
-
-    #-----3. PV Prediction
+     
+#-----3. PV Prediction
     # Lade PV-Erzeugunggsdaten von Renewables.ninja API	
     #Wenn DAtei schon existiert, dann lade sie von /data, wenn nicht, dann lade sie von der API und speichere sie in die Datei
     if csv := 'data/renewables_ninja_data/pv_Karlsruhe_2020.csv':
@@ -287,9 +277,6 @@ def main():
         except FileNotFoundError:
             print("File not found, fetching from API.")
             solar_df = get_solar_data_from_api(ninja_token, 50.0, 8.0, '2021-01-01', '2021-12-30', 0.8, 0.1, 90, 180)
-    
-     
-
 
     
 
