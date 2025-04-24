@@ -24,7 +24,8 @@ from montecarlo import (
     calculate_dynamic_price_with_fees,
     get_fixed_price_per_kwh,
     calculate_annual_dynamic_costs,
-    calculate_annual_static_costs
+    calculate_annual_static_costs,
+    load_or_run_simulation
 )
 
 from customer_input_check import (
@@ -183,7 +184,7 @@ def main():
         random_household_two_week = get_household_profile(two_week_data, household_col)
 
         weekday_profile_dict = build_weekday_profile_dict(random_household_two_week, timestamp_col='Time', load_col='Load')
-        simulations = monte_carlo_simulation_load_profiles(weekday_profile_dict, 2020, 100)
+        simulations = load_or_run_simulation(household_col, weekday_profile_dict, 2020, 100)# Lade simulierte Lastprofile aus Cache (wenn vorhanden), oder führe neue Monte-Carlo-Simulation durch #TODO: Jahr unabhängig machen
         seasonal_factor = calculate_seasonal_factor_per_x(df_standard_load_profile_2019, x="Month")
         adjusted_simulations = apply_seasonal_factors(simulations, seasonal_factor, by='Month')
         final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, 3000)
@@ -192,6 +193,24 @@ def main():
         actual_load_household = actual_load[[household_col]]
         actual_load_household.index = pd.to_datetime(actual_load_household.index)
         actual_load_household.index = actual_load_household.index.tz_convert(None)
+
+        #Plot mit Details für einen spezifischen Haushalt
+        if household_col == "x": #TODO: x durch den gewünschten Haushalt ersetzen, wenn Plot gewünscht ist
+            plt.figure(figsize=(12, 6))
+            hours = 720  # 30 Tage
+            for sim in final_simulations:
+                index_profile = sim.head(hours)
+                plt.plot(index_profile.index, index_profile['Load'], alpha=0.2, linewidth=1)
+            actual_slice = actual_load_household.loc[actual_load_household.index[:hours]]
+            plt.plot(actual_slice.index, actual_slice[household_col], color='red', label='Actual Load', linewidth=1)
+            plt.title(f"First {hours} Hours of 100 Simulated Load Profiles – {household_col}")
+            plt.xlabel("Time")
+            plt.ylabel("Load [kWh]")
+            plt.xticks(rotation=45)
+            plt.grid(True)
+            plt.legend()
+            plt.tight_layout()
+            plt.show()
 
         # Berechne Kosten
         sim_costs = [
@@ -242,6 +261,10 @@ def main():
     print("\nOverall Mean NMAE:", np.mean(household_nmae_means))
     print("Overall Std NMAE:", np.std(household_nmae_means))
     
+    
+
+    
+
      
 #-----3. PV Prediction
     # Lade PV-Erzeugunggsdaten von Renewables.ninja API	
