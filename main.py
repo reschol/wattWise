@@ -1,5 +1,6 @@
 import random
 from matplotlib import pyplot as plt
+from matplotlib import dates as mdates
 import numpy as np
 import pandas as pd
 import json
@@ -172,17 +173,39 @@ def main():
     final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, 3000) #TODO: 3000 kWh/a is the average consumption of a single family household in Germany. This should be an input parameter.
     
     plt.figure(figsize=(12, 6))
+    hours = 720 # 24 hours * 7 days = 168 hours
+    
     for i, sim in enumerate(final_simulations):
-        first_24h = sim.head(168)
-        plt.plot(first_24h.index, first_24h['Load'], alpha=0.2, linewidth=1)
-
-    plt.title("First 24 Hours of 100 Simulated Load Profiles")
+        index_profile = sim.head(hours)
+        plt.plot(index_profile.index, index_profile['Load'], alpha=0.2, linewidth=1)
+    actual_slice = actual_load_household.loc[actual_load_household.index[:hours]]
+    plt.plot(actual_slice.index, actual_slice[testhousehold], color='red', label='Actual Load', linewidth= 1)
+    plt.title(f"First {hours} Hours of 100 Simulated Load Profiles")
     plt.xlabel("Time")
     plt.ylabel("Load [kWh]")
     plt.xticks(rotation=45)
     plt.grid(True)
+    plt.legend()
     plt.tight_layout()
-    #plt.show()
+    plt.show()
+
+    hours2 = 168 # 24 hours * 7 days = 168 hours
+    
+    for i, sim in enumerate(final_simulations):
+        index_profile = sim.head(hours2)
+        plt.plot(index_profile.index, index_profile['Load'], alpha=0.2, linewidth=1)
+    actual_slice = actual_load_household.loc[actual_load_household.index[:hours2]]
+    plt.plot(actual_slice.index, actual_slice[testhousehold], color='red', label='Actual Load', linewidth=1)
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%d.%m %H:%M'))
+    plt.gcf().autofmt_xdate()  # automatische Rotation & Format
+    plt.title(f"First {hours2} Hours of 100 Simulated Load Profiles")
+    plt.xlabel("Time")
+    plt.ylabel("Load [kWh]")
+    plt.xticks(rotation=45)
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
     #-----3. Electricity Price Integration
     df_spot_data_requested = load_spot_market_prices(start_2020, end_2020, country_code, spot_directory)
