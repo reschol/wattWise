@@ -379,6 +379,7 @@ def calculate_dynamic_price_with_fees(
         return pd.DataFrame()
 
     # Umrechnung ct/kWh → €/kWh mit Verbrauchsaufschlag
+    df_period = df_period.copy()
     df_period['Dynamic Price €/kWh'] = (df_period[price_col] + consumption_dependent_fixed_costs) / 100
 
     return df_period[['Dynamic Price €/kWh']]

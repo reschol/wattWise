@@ -1,6 +1,6 @@
-# This minimal example on how to retrieve data from the apis
 import random
 from matplotlib import pyplot as plt
+import numpy as np
 import pandas as pd
 import json
 
@@ -75,7 +75,7 @@ sfh_2019 = prepare_household_data(data_2019, keyword=keyword, exclude_columns=ex
 #random_end_date = random_start_date + pd.Timedelta(days=14)
 random_start_date = '2019-01-01 00:00:00+00:00' #TODO : random choice
 random_end_date = '2019-01-15 00:00:00+00:00' #TODO : random choice
-testhousehold = 'SFH7_P_TOT' #TODO: alle HH 
+testhousehold = 'SFH4_P_TOT' #TODO: alle HH 
 
 two_week_data = filter_two_week_data(sfh_2019, random_start_date, random_end_date)
 print("Filtered two-week data:", two_week_data)
@@ -131,11 +131,11 @@ def fill_missing_hours(df: pd.DataFrame, time_col: str = "Time", value_cols: lis
 #--c) Actual Load Daten Laden
 #TODO: Start date
 #TODO: End date
-#TODO: Funktion answenden actual_load_household = get_actual_data_from_household_data(sfh_2019, actual_start_date, actual_end_date, load_col='SFH7_P_TOT')
+#TODO: Funktion answenden actual_load_household = get_actual_data_from_household_data(sfh_2019, actual_start_date, actual_end_date, load_col=testhousehold)
 #TODO: nächste Zeile löschen
 actual_load = pd.read_csv(r'D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\test_data_actual_load_profile_2020.csv', sep=';', index_col='date')
-#only SFH7_P_TOT
-actual_load_household = actual_load[['SFH7_P_TOT']]
+#only testhousehold ('SFHx_P_TOT') and date
+actual_load_household = actual_load[[testhousehold]]
 actual_load_household.index = pd.to_datetime(actual_load_household.index)
 actual_load_household.index = actual_load_household.index.tz_convert(None)
 
@@ -199,27 +199,31 @@ def main():
     #Plot annual dynamic costs of all simulations as a histogram
     mean_cost = np.mean(simulations_annual_dynamic_costs)
     std_cost = np.std(simulations_annual_dynamic_costs)
-    stats_text = f"Simulation Average: {mean_cost:.2f} €\nStd. Deviation: {std_cost:.2f} €"
-    
+    stats_text = f"Simulation Average: {mean_cost:.2f} €\nStd. Deviation: {std_cost:.2f} €\n Actual: {actual_dynamic_costs:.2f} €"
     plt.figure(figsize=(12, 4))
-    plt.plot(simulations_annual_dynamic_costs, [1]*len(simulations_annual_dynamic_costs), 'o', alpha=0.6)
-    plt.axvline(x=actual_dynamic_costs, color='red', linestyle='--', linewidth=2, label='Actual Dynamic Costs = ' + str(round(actual_dynamic_costs, 2)) + ' €')
+    plt.boxplot(simulations_annual_dynamic_costs, vert=False, patch_artist=True,
+                boxprops=dict(facecolor='lightblue', color='blue'),
+                medianprops=dict(color='black'),
+                whiskerprops=dict(color='blue'),
+                capprops=dict(color='blue'),
+                flierprops=dict(marker='o', markerfacecolor='blue', markersize=5, linestyle='none'))
+    plt.axvline(x=actual_dynamic_costs, color='red', linestyle='--', linewidth=2, label=f'Actual = {actual_dynamic_costs:.2f} €')
     plt.title("Annual Dynamic Costs of 100 Simulated Load Profiles of Household " + testhousehold)
     plt.xlabel("Annual Dynamic Costs [€]")
-    plt.yticks([])  # y-Achse ausblenden, da alle Punkte auf einer Linie
+    plt.yticks([])  # y-Achse ausblenden
     plt.grid(axis='x', alpha=0.3)
-    
+    plt.legend()
     plt.text(0.98, 0.95, stats_text,
-         transform=plt.gca().transAxes,
-         fontsize=10,
-         verticalalignment='top',
-         horizontalalignment='right',
-         bbox=dict(facecolor='lightgray', edgecolor='black', boxstyle='round,pad=0.5'))
+            transform=plt.gca().transAxes,
+            fontsize=10,
+            verticalalignment='top',
+            horizontalalignment='right',
+            bbox=dict(facecolor='lightgray', edgecolor='black', boxstyle='round,pad=0.5'))
     plt.tight_layout()
     plt.show()
 
     
-    #-----2 und 3 b. Load Prediction Evaluation #TODO PRICE EVALUATION
+    #-----2 und 3 b. Load Prediction Evaluation #TODO PRICE EVALUATION, geht aber erst mit mehreren Haushalten
     #NMAE
     nmae_load_list = []
     #nmae_price_list = []
@@ -228,7 +232,7 @@ def main():
         #TODO: Schaltjahr berücksichtigen
 
         final_simulations[i] = final_simulations[i][:-24] #remove last 24 hours of the forecast, because they are not in the actual load data
-        #print("Simulation", i, "NMAE:", calculate_nmae_load_forecast_to_actual_load_hourly(final_simulations[i], actual_load_household, load_forecast_col='Load', actual_load_col='SFH7_P_TOT'))
+        #print("Simulation", i, "NMAE:", calculate_nmae_load_forecast_to_actual_load_hourly(final_simulations[i], actual_load_household, load_forecast_col='Load', actual_load_col=testhousehold))
         nmae_load = calculate_nmae_load_forecast_to_actual_load_hourly(final_simulations[i], actual_load_household, load_forecast_col='Load', actual_load_col=testhousehold)
         #Liste mit NMAE Werten erstellen
         nmae_load_list.append(nmae_load)
@@ -272,17 +276,6 @@ def main():
 
 
 
-
-
-
-
-
-    # Spot market data
-    country_code = 'DE_LU'  # 'DE_LU' for 2018 - 2023 and 'DE_AT_LU' for < 2018
-    spot_directory = 'data/entsoe_data/normal_hourly'
-    start_date = '2019-01-01'
-    end_date = '2019-12-31'
-
     #EntsoE API call
     #fetch_and_save_spot_prices(entsoe_api_key, country_code, start_date, end_date, spot_directory)
     
@@ -292,3 +285,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
