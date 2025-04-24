@@ -289,6 +289,7 @@ def load_spot_market_prices(
     end_date: str,
     country_code: str = 'DE_LU',
     data_dir: str = 'data/entsoe_data/normal_hourly',
+    index_new_df_col: str = 'Time',
 ) -> pd.DataFrame:
     """
     Lädt und konvertiert Spotmarktpreise (€/MWh → ct/kWh) für einen gegebenen Zeitraum.
@@ -299,7 +300,7 @@ def load_spot_market_prices(
         country_code (str): Ländercode für die Datei (z. B. 'DE_LU'). 'DE_LU' for 2018 - 2023 and 'DE_AT_LU' for < 2018
         data_dir (str): Pfad zum Speicherort der CSV-Dateien.
         show_summary (bool): Gibt den Durchschnittspreis aus, wenn True.
-
+        index_new_df_col (str): Name der neuen Indexspalte. Default: 'Time'. Indexspaltenname der data_dir Datei: 'Date (CET)'
     Returns:
         pd.DataFrame: Gefilterte Spotmarktdaten mit datetime-index und Spalte 'Price ct/KWH'.
     """
@@ -321,7 +322,9 @@ def load_spot_market_prices(
                 dayfirst=True
             )
             df['Price ct/KWH'] = df['Price (€/MWh)'] / 1000 * 100
-            df.set_index('Time', inplace=True)
+            df[index_new_df_col] = df['Date (CET)']
+            df.drop(columns=['Date (CET)'], inplace=True)
+            df.set_index(index_new_df_col, inplace=True)
             dfs.append(df[['Price ct/KWH']])
         except FileNotFoundError:
             print(f"Datei nicht gefunden: {file_path}")
@@ -440,12 +443,12 @@ def calculate_annual_dynamic_costs(df_load_profile, df_dynamic_price, dynamic_ba
     if df_dynamic_price.index.tz is not None:
         df_dynamic_price.index = df_dynamic_price.index.tz_convert(None)
 
-    if not df_load_profile.index.equals(df_dynamic_price.index):
-        print("Zeitachsen stimmen nicht überein!")
-        print(f"- df_load_profile:type = {type(df_load_profile.index)}, dtype = {df_load_profile.index.dtype}, tz = {df_load_profile.index.tz}")
-        print(f"- df_dynamic_price:type = {type(df_dynamic_price.index)}, dtype = {df_dynamic_price.index.dtype}, tz = {df_dynamic_price.index.tz}")
-    else:
-        print("Indices sind identisch!")
+    #if not df_load_profile.index.equals(df_dynamic_price.index):
+        #print("Zeitachsen stimmen nicht überein!")
+        #print(f"- df_load_profile:type = {type(df_load_profile.index)}, dtype = {df_load_profile.index.dtype}, tz = {df_load_profile.index.tz}")
+        #print(f"- df_dynamic_price:type = {type(df_dynamic_price.index)}, dtype = {df_dynamic_price.index.dtype}, tz = {df_dynamic_price.index.tz}")
+    #else:
+    #    print("Indices sind identisch!")
 
     # Berechnung der jährlichen Kosten
     annual_costs = ((df_load_profile[load_col] * df_dynamic_price[price_col]).sum(axis=0)) + dynamic_base_price_per_month*12

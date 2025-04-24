@@ -162,7 +162,8 @@ entsoe_api_key = secrets.get("entsoe_api_key")
 
 
 def main():
-    
+    global country_code, spot_directory
+
     #-----2. Load Prediction mit MonteCarlo Simulation EINES einzelnen Haushalts (random_household_two_week)
     weekday_profile_dict = build_weekday_profile_dict(random_household_two_week, timestamp_col='Time', load_col='Load')
     simulations = monte_carlo_simulation_load_profiles(weekday_profile_dict, 2020, 100)
@@ -187,9 +188,35 @@ def main():
     df_spot_data_requested = load_spot_market_prices(start_2020, end_2020, country_code, spot_directory)
     df_dynamic_price = calculate_dynamic_price_with_fees(df_spot_data_requested, start_2020, end_2020)
 
-    #HIER HAB ICH AUFGEHÖRT!!
+    simulations_annual_dynamic_costs = []
+    for i in range(len(final_simulations)):
+        annual_dynamic_costs = calculate_annual_dynamic_costs(final_simulations[i], df_dynamic_price, load_col='Load')
+        simulations_annual_dynamic_costs.append(annual_dynamic_costs)
+        #print("Simulation", i, "Annual Dynamic Costs:", annual_dynamic_costs)
 
+    actual_dynamic_costs = calculate_annual_dynamic_costs(actual_load_household, df_dynamic_price, load_col=testhousehold)
 
+    #Plot annual dynamic costs of all simulations as a histogram
+    mean_cost = np.mean(simulations_annual_dynamic_costs)
+    std_cost = np.std(simulations_annual_dynamic_costs)
+    stats_text = f"Simulation Average: {mean_cost:.2f} €\nStd. Deviation: {std_cost:.2f} €"
+    
+    plt.figure(figsize=(12, 4))
+    plt.plot(simulations_annual_dynamic_costs, [1]*len(simulations_annual_dynamic_costs), 'o', alpha=0.6)
+    plt.axvline(x=actual_dynamic_costs, color='red', linestyle='--', linewidth=2, label='Actual Dynamic Costs = ' + str(round(actual_dynamic_costs, 2)) + ' €')
+    plt.title("Annual Dynamic Costs of 100 Simulated Load Profiles of Household " + testhousehold)
+    plt.xlabel("Annual Dynamic Costs [€]")
+    plt.yticks([])  # y-Achse ausblenden, da alle Punkte auf einer Linie
+    plt.grid(axis='x', alpha=0.3)
+    
+    plt.text(0.98, 0.95, stats_text,
+         transform=plt.gca().transAxes,
+         fontsize=10,
+         verticalalignment='top',
+         horizontalalignment='right',
+         bbox=dict(facecolor='lightgray', edgecolor='black', boxstyle='round,pad=0.5'))
+    plt.tight_layout()
+    plt.show()
 
     
     #-----2 und 3 b. Load Prediction Evaluation #TODO PRICE EVALUATION
@@ -202,7 +229,7 @@ def main():
 
         final_simulations[i] = final_simulations[i][:-24] #remove last 24 hours of the forecast, because they are not in the actual load data
         #print("Simulation", i, "NMAE:", calculate_nmae_load_forecast_to_actual_load_hourly(final_simulations[i], actual_load_household, load_forecast_col='Load', actual_load_col='SFH7_P_TOT'))
-        nmae_load = calculate_nmae_load_forecast_to_actual_load_hourly(final_simulations[i], actual_load_household, load_forecast_col='Load', actual_load_col='SFH7_P_TOT')
+        nmae_load = calculate_nmae_load_forecast_to_actual_load_hourly(final_simulations[i], actual_load_household, load_forecast_col='Load', actual_load_col=testhousehold)
         #Liste mit NMAE Werten erstellen
         nmae_load_list.append(nmae_load)
 
