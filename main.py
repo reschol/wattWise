@@ -180,22 +180,24 @@ def main():
     for household_col in sfh_2019.columns:
         print(f"Processing: {household_col}")
 
-        # 2-Wochen-Profil + Monte Carlo Simulation
+        # 2-Wochen-Profil 
         two_week_data = filter_two_week_data(sfh_2019, random_start_date, random_end_date)
         random_household_two_week = get_household_profile(two_week_data, household_col)
-
-        weekday_profile_dict = build_weekday_profile_dict(random_household_two_week, timestamp_col='Time', load_col='Load')
-        simulations = load_or_run_simulation(household_col, weekday_profile_dict, 2020, 100)# Lade simulierte Lastprofile aus Cache (wenn vorhanden), oder führe neue Monte-Carlo-Simulation durch #TODO: Jahr unabhängig machen
-        seasonal_factor = calculate_seasonal_factor_per_x(df_standard_load_profile_2019, x="Month")
-        adjusted_simulations = apply_seasonal_factors(simulations, seasonal_factor, by='Month')
-        final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, 3000)
 
         # Load actual values
         actual_load_household = actual_load[[household_col]]
         actual_load_household.index = pd.to_datetime(actual_load_household.index)
         actual_load_household.index = actual_load_household.index.tz_convert(None)
 
-        #Plot mit Details für einen spezifischen Haushalt
+        #----- Model comparison: Model A - Monte Carlo -----------
+        # Model Monte Carlo Simulation
+        weekday_profile_dict = build_weekday_profile_dict(random_household_two_week, timestamp_col='Time', load_col='Load')
+        simulations = load_or_run_simulation(household_col, weekday_profile_dict, 2020, 10)# Lade simulierte Lastprofile aus Cache (wenn vorhanden), oder führe neue Monte-Carlo-Simulation durch #TODO: Jahr unabhängig machen
+        seasonal_factor = calculate_seasonal_factor_per_x(df_standard_load_profile_2019, x="Month")
+        adjusted_simulations = apply_seasonal_factors(simulations, seasonal_factor, by='Month')
+        final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, 3000)
+
+        # a) Plot mit Details für einen spezifischen Haushalt
         if household_col == "x": #TODO: x durch den gewünschten Haushalt ersetzen, wenn Plot gewünscht ist
             plt.figure(figsize=(12, 6))
             hours = 720  # 30 Tage
@@ -213,7 +215,7 @@ def main():
             plt.tight_layout()
             plt.show()
 
-        # Berechne Kosten
+        # b) Berechne Kosten
         sim_costs = [
             calculate_annual_dynamic_costs(sim, df_dynamic_price, load_col='Load') for sim in final_simulations
         ]
@@ -245,7 +247,7 @@ def main():
         plt.plot(cost, i + 1, 'rD', label='Actual' if i == 0 else "")  # nur 1x label
     plt.yticks(ticks=np.arange(1, len(household_labels) + 1), labels=household_labels)
     plt.xlabel("Annual Dynamic Costs [€]")
-    plt.title("Annual Dynamic Cost Distribution – All Households")
+    plt.title(" Model A: Monte Carlo Annual Dynamic Cost Distribution – All Households")
     plt.grid(axis='x', alpha=0.3)
     plt.legend(loc='upper right')
     plt.tight_layout()
@@ -261,9 +263,6 @@ def main():
     print(nmae_summary.round(4))
     print("\nOverall Mean NMAE:", np.mean(household_nmae_means))
     print("Overall Std NMAE:", np.std(household_nmae_means))
-    
-    
-
     
 
      
