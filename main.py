@@ -29,6 +29,11 @@ from montecarlo import (
     load_or_run_simulation
 )
 
+from load_prediction_2week_slp import (
+    calculate_prediction_model1,
+    calculate_prediction_model2,
+    scale_load_profile_to_annual_consumption_modelb
+)
 from customer_input_check import (
     load_pickle_to_dataframe,
     filter_time_range,
@@ -152,8 +157,10 @@ df_standard_load_profile_2019 = fill_missing_hours(df=df_agg, time_col='Time', v
     year=2019,
     fill_value=0 # oder np.nan
 )
-df_standard_load_profile_2019['Normalized Load'] = df_standard_load_profile_2019['H00 [kWh]'] /df_standard_load_profile_2019['H00 [kWh]'].sum()*3000 #TODO WOZU??
-df_standard_load_profile_2019['Seasonal Factor'] = df_standard_load_profile_2019['Normalized Load'] / df_standard_load_profile_2019['Normalized Load'].mean() #Save an seaonality index for each hour on a annual mean of 1.0 #TODO: Kritisch hinterfragen
+df_standard_load_profile_2019['Load'] = df_standard_load_profile_2019['H00 [kWh]'] /df_standard_load_profile_2019['H00 [kWh]'].sum()*3000 #TODO WOZU?? Normalized Load
+df_standard_load_profile_2019['Weekday'] = df_standard_load_profile_2019['Time'].dt.dayofweek
+df_standard_load_profile_2019['Hour'] = df_standard_load_profile_2019['Time'].dt.hour
+df_standard_load_profile_2019['Seasonal Factor'] = df_standard_load_profile_2019['Load'] / df_standard_load_profile_2019['Load'].mean() #Save an seaonality index for each hour on a annual mean of 1.0 #TODO: Kritisch hinterfragen
 
 #--d) Load Spot Market Prices
 country_code = 'DE_LU'  # 'DE_LU' for 2018 - 2023 and 'DE_AT_LU' for < 2018
@@ -174,8 +181,11 @@ def main():
     all_simulated_costs = []
     actual_costs = []
     household_labels = []
-    household_nmae_means = []
-    household_nmae_stds = []
+    household_nmae_means_monte_carlo = []
+    household_nmae_stds_monte_carlo = []
+    household_nmae_modelb1 = []	
+    household_nmae_modelb2 = []
+  
 
     for household_col in sfh_2019.columns:
         print(f"Processing: {household_col}")
@@ -191,8 +201,8 @@ def main():
 
         #----- Model comparison: Model A - Monte Carlo -----------
         # Model Monte Carlo Simulation
-        weekday_profile_dict = build_weekday_profile_dict(random_household_two_week, timestamp_col='Time', load_col='Load')
-        simulations = load_or_run_simulation(household_col, weekday_profile_dict, 2020, 10)# Lade simulierte Lastprofile aus Cache (wenn vorhanden), oder führe neue Monte-Carlo-Simulation durch #TODO: Jahr unabhängig machen
+        weekday_profile_dict = build_weekday_profile_dict(random_household_two_week, timestamp_col='Time', load_col='Load',  mode = 'weekday')
+        simulations = load_or_run_simulation(household_col, weekday_profile_dict, 2020, 2, mode = 'weekday')# Lade simulierte Lastprofile aus Cache (wenn vorhanden), oder führe neue Monte-Carlo-Simulation durch #TODO: Jahr unabhängig machen
         seasonal_factor = calculate_seasonal_factor_per_x(df_standard_load_profile_2019, x="Month")
         adjusted_simulations = apply_seasonal_factors(simulations, seasonal_factor, by='Month')
         final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, 3000)
@@ -230,14 +240,63 @@ def main():
                                                                        actual_load_col=household_col)
             nmae_load_list.append(nmae)
 
-        household_nmae_means.append(np.mean(nmae_load_list))
-        household_nmae_stds.append(np.std(nmae_load_list))
+        household_nmae_means_monte_carlo.append(np.mean(nmae_load_list))
+        household_nmae_stds_monte_carlo.append(np.std(nmae_load_list))
 
         # Speichern
         all_simulated_costs.append(sim_costs)
         actual_costs.append(actual_cost)
         household_labels.append(household_col)
     
+    #----- Model comparison: Model B1 - Just two week customer household data -----------
+        predictions_modelb1 = calculate_prediction_model1(
+            random_household_two_week,
+            random_start_date,
+            random_end_date,
+            start_2020,
+            end_2020,
+            timestamp_col = 'Time',
+            load_col = 'Load'
+        )
+        # Normalisiere die Vorhersage auf den jährlichen Verbrauch
+        final_predictions_modelb1 = scale_load_profile_to_annual_consumption_modelb(predictions_modelb1, 3000)
+        # a) Plot mit Details für einen spezifischen Haushalt #TODO
+        
+        # b) Berechne Kosten
+        costs_modelb1 = calculate_annual_dynamic_costs(final_predictions_modelb1, df_dynamic_price, load_col='Load')
+
+        # c) Berechne NMAE
+        nmae_load_modelb1 = calculate_nmae_load_forecast_to_actual_load_hourly(final_predictions_modelb1, actual_load_household, load_forecast_col='Load', actual_load_col=household_col)
+        household_nmae_modelb1.append(nmae_load_modelb1)
+
+    #----- Model comparison: Model B2 - SLP and two week customer data set -----------
+        predictions_modelb2 = calculate_prediction_model2(
+            df_standard_load_profile_2019,
+            random_household_two_week,
+            random_start_date,
+            random_end_date,
+            start_2020,
+            end_2020,
+            timestamp_col = 'Time',
+            load_col = 'Load',
+            weight_season_twoweek = 0.7,
+            weight_season_slp = 0.3,
+            weight_offseason_twoweek = 0.5,
+            weight_offseason_slp = 0.5
+        )
+        # Normalisiere die Vorhersage auf den jährlichen Verbrauch
+        final_predictions_modelb2 = scale_load_profile_to_annual_consumption_modelb(predictions_modelb2, 3000)
+        # a) Plot mit Details für einen spezifischen Haushalt #TODO
+        
+        # b) Berechne Kosten
+        costs_modelb2 = calculate_annual_dynamic_costs(final_predictions_modelb2, df_dynamic_price, load_col='Load')
+
+        # c) Berechne NMAE
+        nmae_load_modelb2 = calculate_nmae_load_forecast_to_actual_load_hourly(final_predictions_modelb2, actual_load_household, load_forecast_col='Load', actual_load_col=household_col)
+        household_nmae_modelb2.append(nmae_load_modelb2)
+            
+
+
     #Boxplot
     plt.figure(figsize=(15, len(household_labels) * 0.5 + 3))
     bplot = plt.boxplot(all_simulated_costs, vert=False, patch_artist=True,
@@ -251,18 +310,25 @@ def main():
     plt.grid(axis='x', alpha=0.3)
     plt.legend(loc='upper right')
     plt.tight_layout()
-    plt.show()
+    #plt.show()
     
     #Zusammenfassung der NMAE-Werte
     nmae_summary = pd.DataFrame({
         "Household": household_labels,
-        "Mean NMAE": household_nmae_means,
-        "Std NMAE": household_nmae_stds
+        "Mean NMAE Monte Carlo": household_nmae_means_monte_carlo,
+        "Std NMAE Monte Carlo": household_nmae_stds_monte_carlo,
+        "Mean NMAE Model B1": household_nmae_modelb1,
+        "Mean NMAE Model B2": household_nmae_modelb2
+        
     })
     print("\n--- NMAE Summary ---")
     print(nmae_summary.round(4))
-    print("\nOverall Mean NMAE:", np.mean(household_nmae_means))
-    print("Overall Std NMAE:", np.std(household_nmae_means))
+    print("\nOverall Mean NMAE Monte Carlo:", np.mean(household_nmae_means_monte_carlo))
+    print("Overall Std NMAE Monte Carlo:", np.std(household_nmae_stds_monte_carlo))
+    print("\n Mean NMAE Model B1", np.mean(household_nmae_modelb1))
+    print("Mean Std NMAE Model B1", np.std(household_nmae_modelb1))
+    print("\n Mean NMAE Model B2", np.mean(household_nmae_modelb2))
+    print("Mean Std NMAE Model B2", np.std(household_nmae_modelb2))
     
 
      

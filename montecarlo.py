@@ -74,24 +74,26 @@ df_standard_load_profile_2019['Hour'] = df_standard_load_profile_2019['Time'].dt
 df_standard_load_profile_2019['Hour'] = df_standard_load_profile_2019['Hour'].apply(lambda x: x.hour)
 
 #Normalizing the values to a "average household" with 3000 kWh  
-df_standard_load_profile_2019['Normalized Load'] = df_standard_load_profile_2019['H00 [kWh]'] /df_standard_load_profile_2019['H00 [kWh]'].sum()*3000
+df_standard_load_profile_2019['Load'] = df_standard_load_profile_2019['H00 [kWh]'] /df_standard_load_profile_2019['H00 [kWh]'].sum()*3000 # Normalized Load
 
 #Save an seaonality index for each hour on a annual mean of 1.0
-df_standard_load_profile_2019['Seasonal Factor'] = df_standard_load_profile_2019['Normalized Load'] / df_standard_load_profile_2019['Normalized Load'].mean()
+df_standard_load_profile_2019['Seasonal Factor'] = df_standard_load_profile_2019['Load'] / df_standard_load_profile_2019['Load'].mean() # Normalized Load
 
 
 # ------ Zwei Wochen Kundenverbrauch für 2020 (stündlich) -- hier ggf. Input ändern #TODO
 #--a) Input #TODOsiehe customer_input_check.py
 
 #--b) Funktion, die aus einem DataFrame mit Zeitstempeln und Lastwerten Dictionary erzeugt, das Wochentage als Keys und Listen von Tagesprofilen (DataFrames mit 24 Stunden) als Values enthält.
-def build_weekday_profile_dict(df: pd.DataFrame, timestamp_col: str = 'Time', load_col: str = 'Load') -> dict:
+def build_weekday_profile_dict(df: pd.DataFrame, timestamp_col: str = 'Time', load_col: str = 'Load', mode: str = 'weekday') -> dict:
     """
-    Baut ein Dictionary mit Wochentags-Keys (Monday–Sunday) und Listen von Tagesprofilen (DataFrames mit 24 Stunden) als Values.
+    Baut ein Dictionary mit Tagesprofilen gruppiert nach Wochentag (Monday–Sunday) oder Arbeitstag/Wochenende.
+    mit Listen von Tagesprofilen (DataFrames mit 24 Stunden) als Values.
 
     Args:
         df (pd.DataFrame): DataFrame mit Zeitreihe über mehrere Tage (14 Tage). Muss Spalten für Zeitstempel und Last enthalten.
         timestamp_col (str): Name der Zeitstempelspalte. Default: 'Time'.
         load_col (str): Name der Lastspalte. Default: 'Load'.
+        mode (str): Gruppierungsmodus – entweder 'weekday' für Montag–Sonntag oder 'workweek' für Arbeitstag vs. Wochenende.
 
     Returns:
         dict: Dictionary mit Wochentagen als Keys und Listen von Tages-DataFrames (je 24 Stunden) als Values.
@@ -102,32 +104,38 @@ def build_weekday_profile_dict(df: pd.DataFrame, timestamp_col: str = 'Time', lo
     df[timestamp_col] = pd.to_datetime(df[timestamp_col])
     df['Weekday'] = df[timestamp_col].dt.day_name()
     df['Date'] = df[timestamp_col].dt.date
+    df['IsWeekend'] = df[timestamp_col].dt.weekday >= 5  # 5 = Samstag, 6 = Sonntag
 
     # Nach Tag gruppieren
     grouped_by_day = df.groupby('Date')
 
     # Dictionary zum Befüllen
-    weekday_profiles = {}
+    profile_dict = {}
 
     for date, group in grouped_by_day:
         if len(group) != 24:
             continue  # überspringe unvollständige Tage
 
-        weekday = group['Weekday'].iloc[0]
+        if mode == 'weekday':
+            key = group['Weekday'].iloc[0]
+        elif mode == 'workweek':
+            key = 'Weekend' if group['IsWeekend'].iloc[0] else 'Weekday'
+        else:
+            raise ValueError("Mode must be 'weekday' or 'workweek'.")
 
-        if weekday not in weekday_profiles:
-            weekday_profiles[weekday] = []
+        if key not in profile_dict:
+            profile_dict[key] = []
 
         # Nur die Lastwerte als DataFrame (Index 0–23)
         daily_profile = group[[load_col]].reset_index(drop=True)
-        weekday_profiles[weekday].append(daily_profile)
+        profile_dict[key].append(daily_profile)
 
-    return weekday_profiles
+    return profile_dict
 
 #------- 2.  Jahreslastprofil erstellen-------------------
 #--a) Pro Wochentag wähle ein Lastprofi aus two week data zufällig aus
 
-def generate_random_yearly_profile(weekday_dfs_with_load: dict, year: int) -> pd.DataFrame:
+def generate_random_yearly_profile(weekday_dfs_with_load: dict, year: int, mode: str = 'weekday') -> pd.DataFrame:
     """
     Erstellt ein zufälliges Jahreslastprofil, indem für jeden Tag im Jahr ein zufälliges Tagesprofil
     aus dem passenden Wochentags-Pool aus `weekday_dfs_with_load` gezogen wird.
@@ -135,6 +143,7 @@ def generate_random_yearly_profile(weekday_dfs_with_load: dict, year: int) -> pd
     Args:
         weekday_dfs_with_load (dict): Dictionary mit Wochentagsnamen als Keys und Listen von Tagesprofilen (DataFrames mit 24 Stunden) als Values.
         year (int): Jahr, für das das Lastprofil erzeugt werden soll.
+        mode (str): Gruppierungsmodus – entweder 'weekday' oder 'workweek'.
 
     Returns:
         pd.DataFrame: Zeitreihe mit stündlichem Lastprofil für das gesamte Jahr.
@@ -153,10 +162,17 @@ def generate_random_yearly_profile(weekday_dfs_with_load: dict, year: int) -> pd
     grouped = full_year_profile.groupby(full_year_profile.index.date)
 
     for day, group in grouped:
-        weekday_name = pd.Timestamp(day).day_name() #Wochentag des Tages
+        timestamp = pd.Timestamp(day)
+
+        if mode == 'weekday':
+            key = timestamp.day_name() #Wochentag des Tages
+        elif mode == 'workweek':
+            key = 'Weekend' if timestamp.weekday() >= 5 else 'Weekday'
+        else:
+            raise ValueError("Ungültiger Modus. Es muss 'weekday' oder 'workweek'sein.")
 
         # Ziehe zufälliges Tagesprofil aus passendem Pool
-        profile_list = weekday_dfs_with_load.get(weekday_name, [])
+        profile_list = weekday_dfs_with_load.get(key, [])
         
         chosen_profile = random.choice(profile_list)
 
@@ -167,7 +183,7 @@ def generate_random_yearly_profile(weekday_dfs_with_load: dict, year: int) -> pd
     
 #--b) Monte Carlo Simulation über mehrere Lastprofile
 #Dafür generate_random_yearly_profile über das selbe Jahr aufrufen
-def monte_carlo_simulation_load_profiles(weekday_dfs_with_load: dict, year: int, n_simulations: int) -> list:
+def monte_carlo_simulation_load_profiles(weekday_dfs_with_load: dict, year: int, n_simulations: int, mode: str = 'weekday') -> list:
     """
     Führt eine Monte-Carlo-Simulation durch, bei der mehrere zufällige Jahreslastprofile generiert werden.
 
@@ -175,6 +191,7 @@ def monte_carlo_simulation_load_profiles(weekday_dfs_with_load: dict, year: int,
         weekday_dfs_with_load (dict): Dictionary mit Wochentagsnamen als Keys und Listen von Tagesprofilen (DataFrames mit 24 Stunden) als Values.
         year (int): Jahr, für das die Profile generiert werden.
         n_simulations (int): Anzahl der gewünschten Simulationen.
+        mode (str): Gruppierungsmodus – entweder 'weekday' oder 'workweek'.
 
     Returns:
         list: Liste mit DataFrames, jeweils ein vollständiges Jahreslastprofil.
@@ -182,7 +199,7 @@ def monte_carlo_simulation_load_profiles(weekday_dfs_with_load: dict, year: int,
     simulations = []
 
     for i in range(n_simulations):
-        simulated_profile = generate_random_yearly_profile(weekday_dfs_with_load, year)
+        simulated_profile = generate_random_yearly_profile(weekday_dfs_with_load, year, mode)
         simulations.append(simulated_profile)
 
     return simulations
@@ -476,7 +493,7 @@ def calculate_annual_static_costs(df_load_profile, static_price_per_kwh, load_co
 
     return annual_costs
 
-def load_or_run_simulation(household_col, profile_dict, year, n_simulations):
+def load_or_run_simulation(household_col, profile_dict, year, n_simulations, mode: str = 'weekday'):
     """
     Lädt gespeicherte Monte-Carlo-Simulationen für einen Haushalt aus einem Cache-Ordner,
     oder führt die Simulation neu aus, wenn noch kein Ergebnis vorhanden ist.
@@ -486,6 +503,7 @@ def load_or_run_simulation(household_col, profile_dict, year, n_simulations):
         profile_dict (dict): Weekday-Profil des Haushalts (Ergebnis von build_weekday_profile_dict)
         year (int): Jahr der Simulation (z. B. 2020)
         n_simulations (int): Anzahl der zu generierenden Simulationsläufe
+        mode (str): Gruppierungsmodus – entweder 'weekday' oder 'workweek'.
 
     Returns:
         list of pd.DataFrame: Liste mit simulierten Lastprofilen (z. B. 100 DataFrames)
@@ -503,7 +521,7 @@ def load_or_run_simulation(household_col, profile_dict, year, n_simulations):
     else:
         # Falls nein: Starte neue Monte-Carlo-Simulation
         print(f"→ Running new simulations for {household_col} ...")
-        simulations = monte_carlo_simulation_load_profiles(profile_dict, year, n_simulations)
+        simulations = monte_carlo_simulation_load_profiles(profile_dict, year, n_simulations, mode)
 
         # Speichere die Simulationen für späteres Wiederverwenden
         with open(cache_path, "wb") as f:
