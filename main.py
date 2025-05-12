@@ -81,7 +81,7 @@ sfh_2019 = prepare_household_data(data_2019, keyword=keyword, exclude_columns=ex
 #random_start_date = random.choice(pd.date_range(pd.Timestamp(start_2019), pd.Timestamp(end_2019) - pd.Timedelta(days=14), tz='UTC'))
 #random_end_date = random_start_date + pd.Timedelta(days=14)
 random_start_date = '2019-01-01 00:00:00+00:00' #TODO : random choice
-random_end_date = '2019-01-30 00:00:00+00:00' #TODO : random choice
+random_end_date = '2019-01-14 00:00:00+00:00' #TODO : random choice
 testhousehold = 'SFH4_P_TOT' #TODO: alle HH 
 
 two_week_data = filter_two_week_data(sfh_2019, random_start_date, random_end_date)
@@ -397,8 +397,16 @@ def main():
         "Annual Dyn. Costs Model B2": household_dyn_costs_modelb2,
         "Actual Annual Dyn. Costs": household_actual_costs
     })
+    average_all_households_mc = np.mean([np.mean(costs) for costs in all_simulated_costs])
+    average_all_households_modelb1 = np.mean(household_dyn_costs_modelb1)
+    average_all_households_modelb2 = np.mean(household_dyn_costs_modelb2)
+    average_all_households_actual = np.mean(household_actual_costs)
     print("------------ Price Summary -----")
     print(costs_summary.round(4))
+    print("\nOverall Mean Annual Dynamic Costs Monte Carlo:", average_all_households_mc)
+    print("\nOverall Mean Annual Dynamic Costs Model B1:", average_all_households_modelb1)    
+    print("\nOverall Mean Annual Dynamic Costs Model B2:", average_all_households_modelb2)
+    print("\nOverall Mean Annual Dynamic Costs Actual:", average_all_households_actual)
 
     #Liniendiagramm PReisvergleiche der Models und der tatsächlichen Kosten
     plt.figure(figsize=(12, 6))
@@ -423,8 +431,18 @@ def main():
         "Annual Dyn. Costs Model B2 with PV": household_dyn_costs_modelb2_pv,
         "Actual Annual Dyn. Costs with PV": household_actual_costs_pv
     })
+    average_all_households_mc_pv = np.mean(household_dyn_costs_monte_carlo_pv)
+    average_all_households_modelb1_pv = np.mean(household_dyn_costs_modelb1_pv)
+    average_all_households_modelb2_pv = np.mean(household_dyn_costs_modelb2_pv)
+    average_all_households_actual_pv = np.mean(household_actual_costs_pv)
+
+
     print("------------ Price Summary with PV -----")
     print(costs_summary_pv.round(4))
+    print("\nOverall Mean Annual Dynamic Costs Monte Carlo with PV:", average_all_households_mc_pv)
+    print("\nOverall Mean Annual Dynamic Costs Model B1 with PV:", average_all_households_modelb1_pv)
+    print("\nOverall Mean Annual Dynamic Costs Model B2 with PV:", average_all_households_modelb2_pv)
+    print("\nOverall Mean Annual Dynamic Costs Actual with PV:", average_all_households_actual_pv)
    
     #Liniendiagramm PReisvergleiche der Models und der tatsächlichen Kosten
     plt.figure(figsize=(12, 6))

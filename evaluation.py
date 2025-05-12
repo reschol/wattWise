@@ -79,7 +79,7 @@ def calculate_nmae_load_forecast_to_actual_load_hourly(
     absolute_errors = (forecast_series - actual_series).abs()
     nmae = absolute_errors.sum() / actual_series.abs().sum() * 100  # in %
 
-    print(abs(absolute_errors).sum(), actual_series.abs().sum())
+    #print(abs(absolute_errors).sum(), actual_series.abs().sum())
     return nmae
 
 def calculate_nmae_dynmic_price_forecast_actual(
