@@ -177,7 +177,20 @@ def main():
     df_spot_data_requested = load_spot_market_prices(start_2020, end_2020, country_code, spot_directory)
     df_dynamic_price = calculate_dynamic_price_with_fees(df_spot_data_requested, start_2020, end_2020)
 
+    # PV Prediction
+    #Lade PV-Erzeugunggsdaten von Renewables.ninja API	
+    #Wenn DAtei schon existiert, dann lade sie von /data, wenn nicht, dann lade sie von der API und speichere sie in die Datei
+    if csv := 'data/renewables_ninja_data/pv_Karlsruhe_2020.csv':
+        try:
+            solar_df = load_solar_data_from_csv(csv)
+            print("Solar data loaded from CSV.")
+        except FileNotFoundError:
+            print("File not found, fetching from API.")
+            solar_df = get_solar_data_from_api(ninja_token, 50.0, 8.0, '2021-01-01', '2021-12-30', 0.8, 0.1, 90, 180)
+
+
     # Datenstruktur vorbereiten
+    #ohne PV
     all_simulated_costs = []
     actual_costs = []
     household_labels = []
@@ -191,7 +204,18 @@ def main():
     household_actual_costs = []
   
 
+    # mit PV
+    household_actual_costs_pv = []
+    #all_simulated_costs_pv = []
+    household_dyn_costs_monte_carlo_pv = []
+    household_dyn_costs_modelb1_pv = []
+    household_dyn_costs_modelb2_pv = []
+
+
+    
     for household_col in sfh_2019.columns:
+        household_labels.append(household_col)
+
         # 2-Wochen-Profil 
         two_week_data = filter_two_week_data(sfh_2019, random_start_date, random_end_date)
         random_household_two_week = get_household_profile(two_week_data, household_col)
@@ -204,7 +228,7 @@ def main():
         #----- Model comparison: Model A - Monte Carlo -----------
         # Model Monte Carlo Simulation
         weekday_profile_dict = build_weekday_profile_dict(random_household_two_week, timestamp_col='Time', load_col='Load',  mode = 'weekday')
-        simulations = load_or_run_simulation(household_col, weekday_profile_dict, 2020, 2, mode = 'weekday')# Lade simulierte Lastprofile aus Cache (wenn vorhanden), oder führe neue Monte-Carlo-Simulation durch #TODO: Jahr unabhängig machen
+        simulations = load_or_run_simulation(household_col, weekday_profile_dict, 2020, 100, mode = 'weekday')# Lade simulierte Lastprofile aus Cache (wenn vorhanden), oder führe neue Monte-Carlo-Simulation durch #TODO: Jahr unabhängig machen
         seasonal_factor = calculate_seasonal_factor_per_x(df_standard_load_profile_2019, x="Month")
         adjusted_simulations = apply_seasonal_factors(simulations, seasonal_factor, by='Month')
         final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, 3000)
@@ -232,8 +256,11 @@ def main():
             calculate_annual_dynamic_costs(sim, df_dynamic_price, load_col='Load') for sim in final_simulations
         ]
         household_dyn_costs_monte_carlo.append(np.mean(sim_costs))
+
         actual_cost = calculate_annual_dynamic_costs(actual_load_household, df_dynamic_price, load_col=household_col)
         household_actual_costs.append(actual_cost)
+
+
         # Berechne NMAE
         nmae_load_list = []
         for sim in final_simulations:
@@ -249,7 +276,7 @@ def main():
         # Speichern
         all_simulated_costs.append(sim_costs)
         actual_costs.append(actual_cost)
-        household_labels.append(household_col)
+        
     
     #----- Model comparison: Model B1 - Just two week customer household data -----------
         predictions_modelb1 = calculate_prediction_model1(
@@ -298,8 +325,35 @@ def main():
         # c) Berechne NMAE
         nmae_load_modelb2 = calculate_nmae_load_forecast_to_actual_load_hourly(final_predictions_modelb2, actual_load_household, load_forecast_col='Load', actual_load_col=household_col)
         household_nmae_modelb2.append(nmae_load_modelb2)
-            
+        
+    #----- Integrate PV in all three models -----------
+        # Actual Load with PV
 
+        actual_load_with_pv_df = calculate_net_load_with_pv(actual_load_household, solar_df, load_df_col=household_col)
+        
+        actual_cost_pv = calculate_annual_dynamic_costs(actual_load_with_pv_df, df_dynamic_price, load_col='Load')
+        household_actual_costs_pv.append(actual_cost_pv)
+        
+        
+        
+        # Model MC: Monte Carlo Simulation
+        for sim in final_simulations:
+            load_with_pv_df_mc = calculate_net_load_with_pv(sim, solar_df)
+            sim_costs = [
+                calculate_annual_dynamic_costs(load_with_pv_df_mc, df_dynamic_price, load_col='Load') 
+            ]
+        household_dyn_costs_monte_carlo_pv.append(np.mean(sim_costs))
+            
+        # Model B1
+        final_predictions_modelb1_pv = calculate_net_load_with_pv(final_predictions_modelb1, solar_df)
+        costs_modelb1_pv = calculate_annual_dynamic_costs(final_predictions_modelb1_pv, df_dynamic_price, load_col='Load')
+        household_dyn_costs_modelb1_pv.append(costs_modelb1_pv)
+
+        # Model B2
+        final_predictions_modelb2_pv = calculate_net_load_with_pv(final_predictions_modelb2, solar_df)
+        costs_modelb2_pv = calculate_annual_dynamic_costs(final_predictions_modelb2_pv, df_dynamic_price, load_col='Load')
+        household_dyn_costs_modelb2_pv.append(costs_modelb2_pv)
+    
 
     #Boxplot
     plt.figure(figsize=(15, len(household_labels) * 0.5 + 3))
@@ -360,32 +414,42 @@ def main():
     plt.legend()
     plt.tight_layout()
     plt.show()
-     
-#-----3. PV Prediction
-    # Lade PV-Erzeugunggsdaten von Renewables.ninja API	
-    #Wenn DAtei schon existiert, dann lade sie von /data, wenn nicht, dann lade sie von der API und speichere sie in die Datei
-    if csv := 'data/renewables_ninja_data/pv_Karlsruhe_2020.csv':
-        try:
-            solar_df = load_solar_data_from_csv(csv)
-            print("Solar data loaded from CSV.")
-        except FileNotFoundError:
-            print("File not found, fetching from API.")
-            solar_df = get_solar_data_from_api(ninja_token, 50.0, 8.0, '2021-01-01', '2021-12-30', 0.8, 0.1, 90, 180)
 
-    
+    #Zusammenfassung der Kosten mit 
+    costs_summary_pv = pd.DataFrame({
+        "Household": household_labels,
+        "Mean Annual Dyn. Costs MC with PV": household_dyn_costs_monte_carlo_pv,
+        "Annual Dyn. Costs Model B1 with PV": household_dyn_costs_modelb1_pv,
+        "Annual Dyn. Costs Model B2 with PV": household_dyn_costs_modelb2_pv,
+        "Actual Annual Dyn. Costs with PV": household_actual_costs_pv
+    })
+    print("------------ Price Summary with PV -----")
+    print(costs_summary_pv.round(4))
+   
+    #Liniendiagramm PReisvergleiche der Models und der tatsächlichen Kosten
+    plt.figure(figsize=(12, 6))
+    plt.plot(household_labels, household_dyn_costs_monte_carlo_pv, label='Monte Carlo', marker='o', color='blue')
+    plt.plot(household_labels, household_dyn_costs_modelb1_pv, label='Model B1', marker='o', color='orange')
+    plt.plot(household_labels, household_dyn_costs_modelb2_pv, label='Model B2', marker='o', color='green')
+    plt.plot(household_labels, household_actual_costs_pv, label='Actual', marker='o', color='red', linestyle='--')
+    plt.title("Annual Dynamic Costs Comparison WITH PV")
+    plt.xlabel("Household")
+    plt.ylabel("Annual Dynamic Costs [€]")
+    plt.xticks(rotation=45)
+    plt.grid()
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
-
-    # Netload with PV
-    #load_with_pv_df = calculate_net_load_with_pv(solar_df, load_df)
-
-
-
+       
     #EntsoE API call
     #fetch_and_save_spot_prices(entsoe_api_key, country_code, start_date, end_date, spot_directory)
     
     #Renewables Ninja API call
     #solar_data = fetch_solar_data(ninja_token, 50.0, 8.0, '2021-01-01', '2021-12-31',1,0.1,90,180)
     #print(solar_data)
+     
+
 
 if __name__ == "__main__":
     main()

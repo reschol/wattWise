@@ -99,11 +99,7 @@ def calculate_prediction_model2(slp: pd.DataFrame, random_household_two_week: pd
     """
 
     # Saison bestimmen (erste Datum der zwei Wochen) #TODO
-
-
     season = "Winter"  # TODO
-
-
 
     # 2. Durchschnittliche Tagesprofile berechnen aus den SLP-Daten vom Vorjahr
     df_slp = slp.copy()
@@ -180,6 +176,9 @@ def scale_load_profile_to_annual_consumption_modelb(df: pd.DataFrame, annual_con
     
 
 
+
+
+"""
 #----------------------------------------Test
 from datetime import datetime
 start_date = datetime(2020, 1, 1)
@@ -244,3 +243,4 @@ plt.grid()
 plt.legend()
 plt.tight_layout()
 #plt.show()
+"""

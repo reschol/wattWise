@@ -57,7 +57,7 @@ def load_solar_data_from_csv(filepath: str) -> pd.DataFrame:
     df = pd.read_csv(filepath, index_col='Time', parse_dates=True)
     return df
 
-def calculate_net_load_with_pv(load_df, solar_df):
+def calculate_net_load_with_pv(load_df, solar_df, load_df_col='Load'):
     """
     Berechnet den tatsächlichen Stromverbrauch unter Berücksichtigung der PV-Anlage.
 
@@ -69,8 +69,9 @@ def calculate_net_load_with_pv(load_df, solar_df):
         DataFrame: Nettoverbrauch (Strombedarf abzüglich PV-Erzeugung).
     """
     load_with_pv_df = load_df.copy()
-    load_with_pv_df['Net_Load'] = load_df['Load'].sub(solar_df['Electricity'], fill_value=0)
-    load_with_pv_df['Net_Load'] = load_with_pv_df['Net_Load'].apply(lambda x: max(x, 0))
+    load_with_pv_df['Load'] = load_df[load_df_col].sub(solar_df['Electricity'], fill_value=0)
+    load_with_pv_df['Load'] = load_with_pv_df['Load'].apply(lambda x: max(x, 0))
+    
     return load_with_pv_df
 
 
