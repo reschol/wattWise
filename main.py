@@ -81,7 +81,7 @@ sfh_2019 = prepare_household_data(data_2019, keyword=keyword, exclude_columns=ex
 #random_start_date = random.choice(pd.date_range(pd.Timestamp(start_2019), pd.Timestamp(end_2019) - pd.Timedelta(days=14), tz='UTC'))
 #random_end_date = random_start_date + pd.Timedelta(days=14)
 random_start_date = '2019-01-01 00:00:00+00:00' #TODO : random choice
-random_end_date = '2019-01-15 00:00:00+00:00' #TODO : random choice
+random_end_date = '2019-01-30 00:00:00+00:00' #TODO : random choice
 testhousehold = 'SFH4_P_TOT' #TODO: alle HH 
 
 two_week_data = filter_two_week_data(sfh_2019, random_start_date, random_end_date)
@@ -183,13 +183,15 @@ def main():
     household_labels = []
     household_nmae_means_monte_carlo = []
     household_nmae_stds_monte_carlo = []
+    household_dyn_costs_monte_carlo = []
     household_nmae_modelb1 = []	
+    household_dyn_costs_modelb1 = []
     household_nmae_modelb2 = []
+    household_dyn_costs_modelb2 = []
+    household_actual_costs = []
   
 
     for household_col in sfh_2019.columns:
-        print(f"Processing: {household_col}")
-
         # 2-Wochen-Profil 
         two_week_data = filter_two_week_data(sfh_2019, random_start_date, random_end_date)
         random_household_two_week = get_household_profile(two_week_data, household_col)
@@ -229,8 +231,9 @@ def main():
         sim_costs = [
             calculate_annual_dynamic_costs(sim, df_dynamic_price, load_col='Load') for sim in final_simulations
         ]
+        household_dyn_costs_monte_carlo.append(np.mean(sim_costs))
         actual_cost = calculate_annual_dynamic_costs(actual_load_household, df_dynamic_price, load_col=household_col)
-
+        household_actual_costs.append(actual_cost)
         # Berechne NMAE
         nmae_load_list = []
         for sim in final_simulations:
@@ -264,7 +267,7 @@ def main():
         
         # b) Berechne Kosten
         costs_modelb1 = calculate_annual_dynamic_costs(final_predictions_modelb1, df_dynamic_price, load_col='Load')
-
+        household_dyn_costs_modelb1.append(costs_modelb1)
         # c) Berechne NMAE
         nmae_load_modelb1 = calculate_nmae_load_forecast_to_actual_load_hourly(final_predictions_modelb1, actual_load_household, load_forecast_col='Load', actual_load_col=household_col)
         household_nmae_modelb1.append(nmae_load_modelb1)
@@ -290,6 +293,7 @@ def main():
         
         # b) Berechne Kosten
         costs_modelb2 = calculate_annual_dynamic_costs(final_predictions_modelb2, df_dynamic_price, load_col='Load')
+        household_dyn_costs_modelb2.append(costs_modelb2)
 
         # c) Berechne NMAE
         nmae_load_modelb2 = calculate_nmae_load_forecast_to_actual_load_hourly(final_predictions_modelb2, actual_load_household, load_forecast_col='Load', actual_load_col=household_col)
@@ -319,18 +323,43 @@ def main():
         "Std NMAE Monte Carlo": household_nmae_stds_monte_carlo,
         "Mean NMAE Model B1": household_nmae_modelb1,
         "Mean NMAE Model B2": household_nmae_modelb2
-        
     })
     print("\n--- NMAE Summary ---")
     print(nmae_summary.round(4))
     print("\nOverall Mean NMAE Monte Carlo:", np.mean(household_nmae_means_monte_carlo))
-    print("Overall Std NMAE Monte Carlo:", np.std(household_nmae_stds_monte_carlo))
+    print("Overall Std NMAE Monte Carlo:", np.std(household_nmae_means_monte_carlo))
     print("\n Mean NMAE Model B1", np.mean(household_nmae_modelb1))
     print("Mean Std NMAE Model B1", np.std(household_nmae_modelb1))
     print("\n Mean NMAE Model B2", np.mean(household_nmae_modelb2))
     print("Mean Std NMAE Model B2", np.std(household_nmae_modelb2))
-    
 
+
+    #Zusammenfassung der Kosten
+    costs_summary = pd.DataFrame({
+        "Household": household_labels,
+        "Mean Annual Dyn. Costs MC": [np.mean(costs) for costs in all_simulated_costs],
+        "Std Annual Dyn. Costs MC": [np.std(costs) for costs in all_simulated_costs],
+        "Annual Dyn. Costs Model B1": household_dyn_costs_modelb1,
+        "Annual Dyn. Costs Model B2": household_dyn_costs_modelb2,
+        "Actual Annual Dyn. Costs": household_actual_costs
+    })
+    print("------------ Price Summary -----")
+    print(costs_summary.round(4))
+
+    #Liniendiagramm PReisvergleiche der Models und der tatsächlichen Kosten
+    plt.figure(figsize=(12, 6))
+    plt.plot(household_labels, household_dyn_costs_monte_carlo, label='Monte Carlo', marker='o', color='blue')
+    plt.plot(household_labels, household_dyn_costs_modelb1, label='Model B1', marker='o', color='orange')
+    plt.plot(household_labels, household_dyn_costs_modelb2, label='Model B2', marker='o', color='green')
+    plt.plot(household_labels, household_actual_costs, label='Actual', marker='o', color='red', linestyle='--')
+    plt.title("Annual Dynamic Costs Comparison")
+    plt.xlabel("Household")
+    plt.ylabel("Annual Dynamic Costs [€]")
+    plt.xticks(rotation=45)
+    plt.grid()
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
      
 #-----3. PV Prediction
     # Lade PV-Erzeugunggsdaten von Renewables.ninja API	

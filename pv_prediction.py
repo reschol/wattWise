@@ -4,8 +4,6 @@ import numpy as np
 from src.utils.renewables_ninja import fetch_solar_data
 
 
-
-
 def get_solar_data_from_api(ninja_token, lat: float, lon: float, start: str, end: str,
                             capacity: float = 0.8, system_loss: float = 0.1,
                             tilt: int = 90, azimuth: int = 180) -> pd.DataFrame:

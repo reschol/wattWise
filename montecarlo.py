@@ -293,7 +293,7 @@ def scale_load_profile_to_annual_consumption(df: list, annual_consumption: float
     for profile in df:
         profile = profile.copy()
         total_load = profile['Load'].sum()
-        print(f"Total Load: {total_load} kWh")
+        #print(f"Total Load: {total_load} kWh")
         scaling_factor = annual_consumption / total_load
         profile['Load'] *= scaling_factor
         scaled_profiles.append(profile)
