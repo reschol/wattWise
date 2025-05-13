@@ -66,6 +66,8 @@ start_2019 = '2019-01-01'
 end_2019 = '2019-12-31'
 start_2020 = '2020-01-01'
 end_2020 = '2020-12-31'
+start_2024 = '2024-01-01'
+end_2024 = '2024-12-31'
 keyword = 'SFH' # Single Family Households
 exclude = ['SFH34_P_TOT'] # weird profile, not usable
 data_allhouseholds = load_pickle_to_dataframe(hh_path)
@@ -167,7 +169,7 @@ country_code = 'DE_LU'  # 'DE_LU' for 2018 - 2023 and 'DE_AT_LU' for < 2018
 spot_directory = 'data/entsoe_data/normal_hourly' #wenn daten bereits abgefragt wurden, sonst über API
 entsoe_api_key = secrets.get("entsoe_api_key")
 #EntsoE API call
-#fetch_and_save_spot_prices(entsoe_api_key, country_code, start_date, end_date, spot_directory)
+#fetch_and_save_spot_prices(entsoe_api_key, country_code, start_2024, end_2024, spot_directory)
 
 
 def main():
