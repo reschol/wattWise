@@ -210,7 +210,10 @@ def main():
     household_dyn_costs_monte_carlo_pv = []
     household_dyn_costs_modelb1_pv = []
     household_dyn_costs_modelb2_pv = []
-
+    household_nmae_means_monte_carlo_pv = []
+    household_nmae_stds_monte_carlo_pv = []
+    household_nmae_modelb1_pv = []	
+    household_nmae_modelb2_pv = []
 
     
     for household_col in sfh_2019.columns:
@@ -336,23 +339,38 @@ def main():
         
         
         
-        # Model MC: Monte Carlo Simulation
+        # Model MC: Monte Carlo Simulation - Costs und NMAE
+        nmae_load_list_pv = []
         for sim in final_simulations:
             load_with_pv_df_mc = calculate_net_load_with_pv(sim, solar_df)
+            #TODO: load_with_pv_df_mc = load_with_pv_df_mc[:-24]  # Letzte 24h entfernen -> unschön. load_with_pv_df_mc hat sonst Tage bis 31. 12.2020, actual_load_with_pv_df hat nur bis 30.12.2020. Dies muss gleich sein
+            load_with_pv_df_mc_short = load_with_pv_df_mc[:-24]
+            
+            nmae_pv = calculate_nmae_load_forecast_to_actual_load_hourly(load_with_pv_df_mc_short, actual_load_with_pv_df,load_forecast_col='Load',
+                                                                       actual_load_col=household_col)
+            nmae_load_list_pv.append(nmae_pv)
             sim_costs = [
                 calculate_annual_dynamic_costs(load_with_pv_df_mc, df_dynamic_price, load_col='Load') 
             ]
         household_dyn_costs_monte_carlo_pv.append(np.mean(sim_costs))
-            
+        household_nmae_means_monte_carlo_pv.append(np.mean(nmae_load_list_pv))
+        household_nmae_stds_monte_carlo_pv.append(np.std(nmae_load_list_pv))
+ 
         # Model B1
         final_predictions_modelb1_pv = calculate_net_load_with_pv(final_predictions_modelb1, solar_df)
         costs_modelb1_pv = calculate_annual_dynamic_costs(final_predictions_modelb1_pv, df_dynamic_price, load_col='Load')
         household_dyn_costs_modelb1_pv.append(costs_modelb1_pv)
 
+        nmae_load_modelb1_pv = calculate_nmae_load_forecast_to_actual_load_hourly(final_predictions_modelb1_pv, actual_load_with_pv_df, load_forecast_col='Load', actual_load_col=household_col)
+        household_nmae_modelb1_pv.append(nmae_load_modelb1_pv)
+
         # Model B2
         final_predictions_modelb2_pv = calculate_net_load_with_pv(final_predictions_modelb2, solar_df)
         costs_modelb2_pv = calculate_annual_dynamic_costs(final_predictions_modelb2_pv, df_dynamic_price, load_col='Load')
         household_dyn_costs_modelb2_pv.append(costs_modelb2_pv)
+
+        nmae_load_modelb2_pv = calculate_nmae_load_forecast_to_actual_load_hourly(final_predictions_modelb2_pv, actual_load_with_pv_df, load_forecast_col='Load', actual_load_col=household_col)
+        household_nmae_modelb2_pv.append(nmae_load_modelb2_pv)
     
 
     #Boxplot
@@ -386,6 +404,25 @@ def main():
     print("Mean Std NMAE Model B1", np.std(household_nmae_modelb1))
     print("\n Mean NMAE Model B2", np.mean(household_nmae_modelb2))
     print("Mean Std NMAE Model B2", np.std(household_nmae_modelb2))
+
+
+    #Zusammenfassung der NMAE-Werte MIT PV
+    nmae_summary_pv = pd.DataFrame({
+        "Household": household_labels,
+        "Mean NMAE Monte Carlo with PV": household_nmae_means_monte_carlo_pv,
+        "Std NMAE Monte Carlo with PV": household_nmae_stds_monte_carlo_pv,
+        "Mean NMAE Model B1 with PV": household_nmae_modelb1_pv,
+        "Mean NMAE Model B2 with PV": household_nmae_modelb2_pv
+    })
+
+    print("\n--- NMAE Summary WITH PV ---")
+    print(nmae_summary_pv.round(4))
+    print("\nOverall Mean NMAE Monte Carlo:", np.mean(household_nmae_means_monte_carlo_pv))
+    print("Overall Std NMAE Monte Carlo:", np.std(household_nmae_means_monte_carlo_pv))
+    print("\n Mean NMAE Model B1", np.mean(household_nmae_modelb1_pv))
+    print("Mean Std NMAE Model B1", np.std(household_nmae_modelb1_pv))
+    print("\n Mean NMAE Model B2", np.mean(household_nmae_modelb2_pv))
+    print("Mean Std NMAE Model B2", np.std(household_nmae_modelb2_pv))
 
 
     #Zusammenfassung der Kosten

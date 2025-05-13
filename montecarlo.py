@@ -529,3 +529,4 @@ def load_or_run_simulation(household_col, profile_dict, year, n_simulations, mod
             pickle.dump(simulations, f)
         
         return simulations
+
