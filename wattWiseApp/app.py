@@ -2,10 +2,12 @@
 import dash
 import dash_bootstrap_components as dbc
 from dash import dcc, html, page_container, page_registry
+import controller
+
 
 app = dash.Dash(__name__,
                 use_pages=True,
-                external_stylesheets=[dbc.themes.CYBORG, "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" ])
+                external_stylesheets=[dbc.themes.BOOTSTRAP, "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" ])
 
 app.layout = dbc.Container([
     dbc.NavbarSimple(
@@ -19,6 +21,7 @@ app.layout = dbc.Container([
         ]
     ),
     html.Hr(),
+    dcc.Store(id="model-result-store", storage_type="session"), # << hier speichern wir Ergebnis & Eingaben
     page_container
 ], fluid=True)
 

@@ -1,8 +1,9 @@
 # pages/home.py
 import dash
-from dash import html, dcc
+from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import datetime
+import re
 
 dash.register_page(__name__, path="/", name="Dateneingabe")
 # bi bi-info-circle
@@ -14,7 +15,7 @@ pv_card = dbc.Card([
 
         dbc.Row([
             dbc.Label([
-                html.I(className="bi bi-info-circle me-2 text-info"),
+                html.I(className="bi bi-info-circle me-2 .text-white-50"),
                 "Breitengrad"
             ], width=4, id="label-latitude"),
             dbc.Col(dbc.Input(id="latitude", type="number", placeholder="z. B. 50.0"), width=3),
@@ -23,7 +24,7 @@ pv_card = dbc.Card([
 
         dbc.Row([
             dbc.Label([
-                html.I(className="bi bi-info-circle me-2 text-info"),
+                html.I(className="bi bi-info-circle me-2 .text-white-50"),
                 "Längengrad"
             ], width=4, id="label-longitude"),
             dbc.Col(dbc.Input(id="longitude", type="number", placeholder="z. B. 8.0"), width=3),
@@ -32,7 +33,7 @@ pv_card = dbc.Card([
 
         dbc.Row([
             dbc.Label([
-                html.I(className="bi bi-info-circle me-2 text-info"),
+                html.I(className="bi bi-info-circle me-2 .text-white-50"),
                 "Kapazität (kWp)"
             ], width=4, id="label-capacity"),
             dbc.Col(dbc.Input(id="capacity", type="number", placeholder="z. B. 0.8"), width=3),
@@ -41,7 +42,7 @@ pv_card = dbc.Card([
 
         dbc.Row([
             dbc.Label([
-                html.I(className="bi bi-info-circle me-2 text-info"),
+                html.I(className="bi bi-info-circle me-2 .text-white-50"),
                 "Systemverluste (%)"
             ], width=4, id="label-loss"),
             dbc.Col(dbc.Input(id="system-loss", type="number", placeholder="z. B. 10"), width=3),
@@ -50,7 +51,7 @@ pv_card = dbc.Card([
 
         dbc.Row([
             dbc.Label([
-                html.I(className="bi bi-info-circle me-2 text-info"),
+                html.I(className="bi bi-info-circle me-2 .text-white-50"),
                 "Neigungswinkel (°)"
             ], width=4, id="label-tilt"),
             dbc.Col(dbc.Input(id="tilt", type="number", placeholder="z. B. 90"), width=3),
@@ -59,7 +60,7 @@ pv_card = dbc.Card([
 
         dbc.Row([
             dbc.Label([
-                html.I(className="bi bi-info-circle me-2 text-info"),
+                html.I(className="bi bi-info-circle me-2 .text-white-50"),
                 "Azimuthwinkel (°)"
             ], width=4, id="label-azimuth"),
             dbc.Col(dbc.Input(id="azimuth", type="number", placeholder="z. B. 180"), width=3),
@@ -68,10 +69,23 @@ pv_card = dbc.Card([
 
     ])
 
-], className="mb-4")
+], className="mb-4", style={"backgroundColor": "#ffffff", "color": "primary", "borderRadius": "8px", "width": "35rem"})
 
 layout = dbc.Container([
+    html.H2(
+        ["Persönliche Dateneingabe"],
+        className=".text-black-50 fw-light border-bottom pb-2 mb-4"
+    ),
     dbc.Form([
+        # Jahresverbrauchsfeld
+        dbc.Row([
+            dbc.Label("Name", width=2, id="label-household-name"),
+            dbc.Col(
+                dbc.Input(id="householdname", type="text", placeholder="z. B. SFH3_P_TOT"),
+                width=3
+            )
+        ], className="mb-3"),
+        
         dbc.Row([
             #dbc.Label([html.I(className="bi bi-upload me-2 text-info"), "CSV-Datei hochladen"], width=2, id="label-upload"),
             dbc.Label(["CSV-Datei hochladen"], width=3, id="label-upload"),
@@ -86,7 +100,7 @@ layout = dbc.Container([
                             ], className="text-center")
                         ]),
                         className="border border-secondary shadow-sm",
-                        style={"backgroundColor": "#1a1a1a", "color": "white", "borderRadius": "8px", "cursor": "pointer"}
+                        style={"backgroundColor": "#f5f5f5", "color": "primary", "borderRadius": "8px", "cursor": "pointer", "width": "35rem"}
                     ),
                     multiple=False
                 ),
@@ -94,7 +108,8 @@ layout = dbc.Container([
             )
         ], className="mb-3"),
         dbc.Tooltip("Lade deine CSV-Datei mit Verbrauchsdaten hoch.", target="label-upload", placement="bottom"),
-        
+        html.Div(id="upload-output", className="mt-4"),
+       
         # Jahresverbrauchsfeld
         dbc.Row([
             dbc.Label("Jahresverbrauch (kWh)", width=4, id="label-consumption"),
@@ -125,9 +140,9 @@ layout = dbc.Container([
             dbc.Label("Enddatum Verbauchsdaten", width=4, id="label-end-date"),
             dbc.Col(
                 dbc.Input(
-                    id="start-date",
+                    id="end-date",
                     type="text",
-                    placeholder="31.12.2019",
+                    placeholder="14.01.2019",
                     debounce=True  # Wert wird erst nach Verlassen des Feldes weitergegeben
                 ),
                 width=3
@@ -139,7 +154,7 @@ layout = dbc.Container([
             dbc.Label("Startdatum Forecast", width=4, id="label-start-date-forecast"),
             dbc.Col(
                 dbc.Input(
-                    id="start-date",
+                    id="start-date-forecast",
                     type="text",
                     placeholder="01.01.2020",
                     debounce=True  # Wert wird erst nach Verlassen des Feldes weitergegeben
@@ -169,6 +184,27 @@ layout = dbc.Container([
 
         pv_card,
 
-        dbc.Button("Bestätigen", color="success", className="mt-4")
+        dbc.Button("Bestätigen", id="submit-button", color="success",outline = True, className="me-1", n_clicks = 0),
+        dcc.Location(id="redirect", refresh=True),
     ])
 ])
+
+
+# Beispielhafte Warnanzeige bei Fehler
+# Funktion zum Prüfen des Formats TT.MM.JJJJ
+def is_valid_date_format(date_str):
+    return bool(re.match(r"^\d{2}\.\d{2}\.\d{4}$", date_str))
+
+@callback(
+    Output("start-date", "invalid"),
+    Output("end-date", "invalid"),
+    Output("start-date-forecast", "invalid"),
+    Input("start-date", "value"),
+    Input("end-date", "value"),
+    Input("start-date-forecast", "value"),
+)
+def validate_dates(start_date, end_date, forecast_start):
+    invalid_start = not is_valid_date_format(start_date) if start_date else False
+    invalid_end = not is_valid_date_format(end_date) if end_date else False
+    invalid_forecast = not is_valid_date_format(forecast_start) if forecast_start else False
+    return invalid_start, invalid_end, invalid_forecast
