@@ -142,7 +142,7 @@ def fill_missing_hours(df: pd.DataFrame, time_col: str = "Time", value_cols: lis
 #TODO: End date
 #TODO: Funktion answenden actual_load_household = get_actual_data_from_household_data(sfh_2019, actual_start_date, actual_end_date, load_col=testhousehold)
 #TODO: nächste Zeile löschen
-actual_load = pd.read_csv(r'D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\test_data_actual_load_profile_2020.csv', sep=';', index_col='date')
+actual_load = pd.read_csv(r'D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\test_data_actual_load_profile_2020.csv', sep=',', index_col='date')
 #only testhousehold ('SFHx_P_TOT') and date
 actual_load_household = actual_load[[testhousehold]]
 actual_load_household.index = pd.to_datetime(actual_load_household.index)
@@ -172,23 +172,30 @@ entsoe_api_key = secrets.get("entsoe_api_key")
 #fetch_and_save_spot_prices(entsoe_api_key, country_code, start_2024, end_2024, spot_directory)
 
 
+# PV Prediciton
+def load_or_fetch_solar_data(csv_path, ninja_token, lat=50.0, lon=8.0, start='2021-01-01', end='2021-12-30', capacity=0.8, loss=0.1, tilt=90, azim=180):
+        """
+        Loads solar data from CSV if available, otherwise fetches from API and returns the DataFrame.
+        """
+        try:
+            solar_df = load_solar_data_from_csv(csv_path)
+            print("Solar data loaded from CSV.")
+        except FileNotFoundError:
+            print("File not found, fetching from API.")
+            solar_df = get_solar_data_from_api(ninja_token, lat, lon, start, end, capacity, loss, tilt, azim)
+        return solar_df
+
 def main():
     global country_code, spot_directory
 
     # Load dynamic electricity price
     df_spot_data_requested = load_spot_market_prices(start_2020, end_2020, country_code, spot_directory)
     df_dynamic_price = calculate_dynamic_price_with_fees(df_spot_data_requested, start_2020, end_2020)
+    
+    # Lade PV-Erzeugungsdaten
+    csv_path = 'data/renewables_ninja_data/pv_Karlsruhe_2020.csv'
+    solar_df = load_or_fetch_solar_data(csv_path, ninja_token)
 
-    # PV Prediction
-    #Lade PV-Erzeugunggsdaten von Renewables.ninja API	
-    #Wenn DAtei schon existiert, dann lade sie von /data, wenn nicht, dann lade sie von der API und speichere sie in die Datei
-    if csv := 'data/renewables_ninja_data/pv_Karlsruhe_2020.csv':
-        try:
-            solar_df = load_solar_data_from_csv(csv)
-            print("Solar data loaded from CSV.")
-        except FileNotFoundError:
-            print("File not found, fetching from API.")
-            solar_df = get_solar_data_from_api(ninja_token, 50.0, 8.0, '2021-01-01', '2021-12-30', 0.8, 0.1, 90, 180)
 
 
     # Datenstruktur vorbereiten

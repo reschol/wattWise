@@ -490,9 +490,11 @@ def calculate_annual_static_costs(df_load_profile, static_price_per_kwh, load_co
         float: Jährliche Kosten in Euro.
     """
     
-    annual_costs = (df_load_profile[load_col].sum(axis=0) * static_price_per_kwh[price_col])
+    annual_costs = (df_load_profile[load_col].sum(axis=0) * static_price_per_kwh)
 
     return annual_costs
+
+
 
 def load_or_run_simulation(household_col, profile_dict, year, n_simulations, mode: str = 'weekday'):
     """
