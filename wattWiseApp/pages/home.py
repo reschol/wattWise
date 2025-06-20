@@ -43,11 +43,11 @@ pv_card = dbc.Card([
         dbc.Row([
             dbc.Label([
                 html.I(className="bi bi-info-circle me-2 .text-white-50"),
-                "Systemverluste (%)"
+                "Systemverluste (decimal)"
             ], width=4, id="label-loss"),
-            dbc.Col(dbc.Input(id="system-loss", type="number", placeholder="z. B. 10"), width=3),
+            dbc.Col(dbc.Input(id="system-loss", type="number", placeholder="z. B. 0.1"), width=3),
         ], className="mb-3"),
-        dbc.Tooltip("Verluste durch Kabel, Wechselrichter etc. in Prozent. Für den Standardfall wird von 10 % ausgegangen.", target="label-loss", placement="bottom"),
+        dbc.Tooltip("Verluste durch Kabel, Wechselrichter etc. in Prozent. Für den Standardfall wird von 0.1 (10%) ausgegangen.", target="label-loss", placement="bottom"),
 
         dbc.Row([
             dbc.Label([

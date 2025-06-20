@@ -177,10 +177,15 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
 
     # Load solar data
     #start_date_forecast muss in FOrm YYYY-MM-DD sein, also 2020-01-01, end_date_forecast muss 365 Tage später sein
-    #start_date_forecast_solar = pd.to_datetime(forecast_start).strftime('%Y-%m-%d')
-    #end_date_forecast_solar = (pd.to_datetime(forecast_start) + pd.Timedelta(days=365)).strftime('%Y-%m-%d')
-    
-    #solar_df = get_solar_data_from_api(ninja_token, lat, lon, start_date_forecast_solar, end_date_forecast_solar, cap, loss, tilt, azimuth)
+    start_date_forecast_solar = pd.to_datetime(start_date_forecast).strftime('%Y-%m-%d')
+    end_date_forecast_solar = (pd.to_datetime(start_date_forecast) + pd.Timedelta(days=365)).strftime('%Y-%m-%d')
+    #TODO: Error: Cannot parse given date range beim Aufruf der API
+    solar_df = get_solar_data_from_api(ninja_token, lat, lon, start_date_forecast, end_date_forecast, cap, loss, tilt, azimuth)
+    print("Spalten in solar_df:", solar_df.columns)
+    print("Index von solar_df:", solar_df.index)
+    if solar_df is None:
+        raise ValueError("Fehler beim Abrufen der Solar-Daten. Bitte überprüfe die API-Verbindung oder die Eingabewerte.")
+    total_annual_solar_yield = solar_df['Electricity'].sum()
 
     # Price
     df_spot_data_requested = load_spot_market_prices(start_date_forecast, start_date_forecast + pd.Timedelta(days=365), country_code = 'DE_LU', data_dir = r'D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\entsoe_data\normal_hourly', index_new_df_col= 'Time')
@@ -197,10 +202,14 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
     sim_costs_round = [round(cost, 2) for cost in sim_costs]
     static_price_per_kwh = get_fixed_price_per_kwh(2020,'data/electricity_prices_yearly/electricity_prices_yearly2014_2024.csv', "Summe")
     sim_costs_static = [calculate_annual_static_costs(sim, static_price_per_kwh, load_col="Load") for sim in final_simulations]
+
+
     
     return {
         "status": "success",
         "model": model_choice,
         "costs": sim_costs_round,
         "static_costs": sim_costs_static,
+        "solar_yield": solar_df,
+        "annual solar_yield": total_annual_solar_yield,
     }
