@@ -163,29 +163,20 @@ layout = dbc.Container([
             )
         ], className="mb-3"),
         dbc.Tooltip("TT.MM.JJJJ", target="label-start-date-forecast", placement="bottom"),
-        
-
-        dbc.Row([
-            dbc.Label(
-                ["Modell wählen "],
-                html_for="model-choice", width=4),
-            dbc.Col(
-                dbc.RadioItems(
-                    id="model-choice",
-                    options=[
-                        {"label": " Random Forest", "value": "rf"},
-                        {"label": " Lineare Regression", "value": "lr"},
-                        {"label": " Neurales Netz", "value": "nn"}
-                    ],
-                    value="rf",
-                )
-            )
-        ], className="mb-3"),
+    
 
         pv_card,
 
-        dbc.Button("Bestätigen", id="submit-button", color="success",outline = True, className="me-1", n_clicks = 0),
-        dcc.Location(id="redirect", refresh=True),
+        dbc.Row([
+            dbc.Col([
+                dbc.Button("Bestätigen", id="submit-button", color="success", outline=True, className="me-2"),
+                dbc.Button("Zurücksetzen", id="reset-button", color="danger", outline=True)
+            ])
+        ], className="mt-3"),
+
+    ]),
+    html.Div([
+        dcc.Link(dbc.Button("Zu den Ergebnissen", color="primary"), href="/savings")
     ])
 ])
 

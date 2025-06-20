@@ -1,8 +1,11 @@
 import base64
 import io
+import sys
 import os
+import json
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import pandas as pd
-"""
+
 from pv_prediction import (
     calculate_net_load_with_pv, 
     load_solar_data_from_csv, 
@@ -12,7 +15,6 @@ from pv_prediction import (
 from montecarlo import (
     fill_missing_hours,
     build_weekday_profile_dict,
-    monte_carlo_simulation_load_profiles,
     calculate_seasonal_factor_per_x,
     apply_seasonal_factors,
     scale_load_profile_to_annual_consumption,
@@ -24,14 +26,24 @@ from montecarlo import (
     load_or_run_simulation
 )
 
-from load_prediction_2week_slp import (
-    calculate_prediction_model1,
-    calculate_prediction_model2,
-    scale_load_profile_to_annual_consumption_modelb
+from main import (
+    fill_missing_hours,
+    load_or_fetch_solar_data
 )
-"""
-# Load data from App
 
+# Define the API tokens
+# Personal renewables.ninja API token
+# ninja_token = "" #your renewables.ninja API token (to be stored in a JSON which is the gitignore and thus never comitted/pushed)
+# entsoe_api_key = "" #your entsoe API token (to be stored in a JSON which is the gitignore and thus never comitted/pushed)
+# recommendation: use a JSON file called secrets.json, that is already in the gitignore and should thus be ignored by git
+with open(r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\secrets.json") as f:
+    secrets = json.load(f)
+
+ninja_token = secrets.get("ninja_token")
+entsoe_api_key = secrets.get("entsoe_api_key")
+
+
+# 1. Load data from App
 def load_csv_as_df(encoded_contents: str) -> pd.DataFrame:
     """
     Decodiert und lädt eine CSV-Datei aus einem base64-kodierten Dash Upload-Inhalt.
@@ -70,13 +82,60 @@ def save_dataframe_to_csv(df: pd.DataFrame, filename: str, folder: str = "data")
     df.to_csv(path, index=False)
     return path
 
-def run_model_pipeline(lat, lon, cap, loss, tilt, azimuth,
-                       annual_consumption, start_date, end_date,
-                       forecast_start, model_choice):
+# 2. Load additional data
+def load_and_adjust_standard_load_profile(file_path, sheet_name, time_col = "Time", value_cols: list = ['H00 [kWh]'], fill_value=0, year: int = 2019) -> pd.DataFrame:
     """
-    Führt die Modellpipeline aus – Dummy-Implementierung mit Beispielrechnung.
+    Lädt das Standardlastprofil und passt es an das angegebene Jahr an.
 
     Args:
+        file_path (str): Pfad zur CSV-Datei des Standardlastprofils. file_path = r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\slp\GGV_SLP_1000_MWh_2019_01.xlsx"
+        sheet_name (str): Name des Arbeitsblatts in der Excel-Datei, das das Lastprofil enthält. Standard ist "15Min - SLP 2019".
+        time_col (str): Name der Spalte mit Timestamps. Standard ist "Time".
+        value_cols (list): Spalten, die beibehalten/gefüllt werden sollen. Wenn None → alle außer time_col. #hier value_cols=['H00 [kWh]']
+        fill_value: Wert zum Auffüllen (z. B. 0, np.nan oder dict).
+        year (int): Jahr, für das das Lastprofil angepasst werden soll. Standard ist 2019.
+
+    Returns:
+        pd.DataFrame: Angepasstes DataFrame mit dem Standardlastprofil.
+    """
+
+    df = pd.read_excel(file_path, sheet_name=sheet_name)
+    df_standard_load_profile_2019 = df.copy()
+
+    # Datenaufbereitung
+    df_standard_load_profile_2019.drop(columns=['Messwert-Nr.','MP von', 'MP bis'], inplace=True)
+    df_standard_load_profile_2019['Time'] = df_standard_load_profile_2019['Zeitstempel von'].dt.floor('h') #Fasse Zeitstempel pro Stunde zusammen und summiere H00 [kW] in neuer df
+    df_agg = df_standard_load_profile_2019.groupby('Time').agg({'H00 [kW]': 'sum'}).reset_index()
+    df_agg['H00 [kWh]'] = df_agg['H00 [kW]'] / 4 
+    df_standard_load_profile_2019 = fill_missing_hours(df_agg, time_col, value_cols, year, fill_value )
+    df_standard_load_profile_2019['Load'] = df_standard_load_profile_2019['H00 [kWh]'] /df_standard_load_profile_2019['H00 [kWh]'].sum()*3000 #TODO WOZU?? Normalized Load
+    df_standard_load_profile_2019['Weekday'] = df_standard_load_profile_2019['Time'].dt.dayofweek
+    df_standard_load_profile_2019['Hour'] = df_standard_load_profile_2019['Time'].dt.hour
+    df_standard_load_profile_2019['Seasonal Factor'] = df_standard_load_profile_2019['Load'] / df_standard_load_profile_2019['Load'].mean() #Save an seaonality index for each hour on a annual mean of 1.0 #TODO: Kritisch hinterfragen
+
+    
+    return df_standard_load_profile_2019
+
+
+
+# 3. Run model pipeline
+def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
+                       annual_consumption, start_date, end_date,
+                       forecast_start, model_choice = "montecarlo") -> dict:
+    """
+    Führt die Modellpipeline aus 
+    Lastprognose: 
+
+    PV-Prognose:
+    - get_solar_data_from_api
+
+    Price-Prognose:
+
+
+
+    Args:
+        hh_name (str): Name des Haushalts, z. B. "SFH3_P_TOT"
+        df (pd.DataFrame): DataFrame mit den zwei Wochen Verbrauchsdaten
         lat (float): Breitengrad
         lon (float): Längengrad
         cap (float): PV-Kapazität in kWp
@@ -84,27 +143,64 @@ def run_model_pipeline(lat, lon, cap, loss, tilt, azimuth,
         tilt (float): Neigungswinkel
         azimuth (float): Azimutwinkel
         annual_consumption (float): Jahresverbrauch in kWh
-        start_date (str): Startdatum der Datenbasis
-        end_date (str): Enddatum der Datenbasis
+        start_date (str): Startdatum der Datenbasis für Forecast
+        end_date (str): Enddatum der Datenbasis für Forecast (365 Tage später)
         forecast_start (str): Startdatum der Vorhersage
-        model_choice (str): Modellwahl ("rf", "lr", "nn")
+        model_choice (str): Modellwahl. Default ist "montecarlo".
 
     Returns:
         dict: Ergebnisse wie simulierte Kosten und Fehlermaß.
     """
+    #prepare data
+    start_date_forecast = pd.to_datetime(forecast_start)
+    end_date_forecast = start_date_forecast + pd.Timedelta(days=365)
+    forecast_year = pd.to_datetime(start_date_forecast).year
+    start_date_customer_data = pd.to_datetime(start_date)
+    end_date_customer_data = pd.to_datetime(end_date)
+    customer_data_year = pd.to_datetime(start_date_customer_data).year
 
-    # Beispielberechnungen (Dummy)
-    # z. B. Erzeuge "geschätzte" Kosten und Fehlermaß basierend auf Parametern
-    base_cost = 300
-    pv_bonus = cap * 20  # Annahme: 20 €/kWp "Einsparung"
-    loss_penalty = loss * 2
+    # Load standard load profile
+    slp = load_and_adjust_standard_load_profile(
+        file_path=r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\slp\GGV_SLP_1000_MWh_2019_01.xlsx",
+        sheet_name="15Min - SLP 2019",
+        time_col="Time",
+        value_cols=['H00 [kWh]'],
+        fill_value=0,
+        year=customer_data_year 
+    )
+    # Load prediction
+    weekday_profile_dict = build_weekday_profile_dict(df, timestamp_col='Time', load_col='Load',  mode = 'weekday')
+    simulations = load_or_run_simulation(hh_name, weekday_profile_dict, forecast_year, 100, mode = 'weekday')# Lade simulierte Lastprofile aus Cache (wenn vorhanden), oder führe neue Monte-Carlo-Simulation durch 
+    seasonal_factor = calculate_seasonal_factor_per_x(slp, x="Month")
+    adjusted_simulations = apply_seasonal_factors(simulations, seasonal_factor, by='Month')
+    final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, 3000)
 
-    estimated_cost = base_cost - pv_bonus + loss_penalty
-    nmae_dummy = 0.05 + (0.01 if model_choice == "rf" else 0.02)
+    # Load solar data
+    #start_date_forecast muss in FOrm YYYY-MM-DD sein, also 2020-01-01, end_date_forecast muss 365 Tage später sein
+    #start_date_forecast_solar = pd.to_datetime(forecast_start).strftime('%Y-%m-%d')
+    #end_date_forecast_solar = (pd.to_datetime(forecast_start) + pd.Timedelta(days=365)).strftime('%Y-%m-%d')
+    
+    #solar_df = get_solar_data_from_api(ninja_token, lat, lon, start_date_forecast_solar, end_date_forecast_solar, cap, loss, tilt, azimuth)
 
+    # Price
+    df_spot_data_requested = load_spot_market_prices(start_date_forecast, start_date_forecast + pd.Timedelta(days=365), country_code = 'DE_LU', data_dir = r'D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\entsoe_data\normal_hourly', index_new_df_col= 'Time')
+    print("df_spot_data_requested.head():", df_spot_data_requested.head())
+    df_dynamic_price = calculate_dynamic_price_with_fees(df_spot_data_requested, start_date_forecast, start_date_forecast + pd.Timedelta(days=365))
+    
+
+    static_prices_df_2014_2024 = pd.read_csv('data/electricity_prices_yearly/electricity_prices_yearly2014_2024.csv', delimiter=',', decimal='.', parse_dates=['Year'])
+    static_prices_df_2014_2024['Year'] = pd.to_datetime(static_prices_df_2014_2024['Year']).dt.year # Year als Jahreszahl
+    
+    
+    #Claculate costs
+    sim_costs = [calculate_annual_dynamic_costs(sim, df_dynamic_price, load_col='Load') for sim in final_simulations]
+    sim_costs_round = [round(cost, 2) for cost in sim_costs]
+    static_price_per_kwh = get_fixed_price_per_kwh(2020,'data/electricity_prices_yearly/electricity_prices_yearly2014_2024.csv', "Summe")
+    sim_costs_static = [calculate_annual_static_costs(sim, static_price_per_kwh, load_col="Load") for sim in final_simulations]
+    
     return {
         "status": "success",
         "model": model_choice,
-        "costs": round(estimated_cost, 2),
-        "nmae": round(nmae_dummy, 3)
+        "costs": sim_costs_round,
+        "static_costs": sim_costs_static,
     }

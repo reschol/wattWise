@@ -1,8 +1,9 @@
-from dash import Input, Output, State, callback, html
+from dash import Input, Output, State, callback, html, callback_context, no_update, dcc
 import dash_bootstrap_components as dbc
 from model import load_csv_as_df, save_dataframe_to_csv, run_model_pipeline
 
 
+#Datei upload
 @callback(
     Output("upload-output", "children"),
     Input("upload-data", "contents"),
@@ -33,13 +34,15 @@ def handle_csv_upload(contents, filename):
         return dbc.Alert(f"Fehler beim Einlesen: {str(e)}", color="danger")
 
 
-#Modell Input
+
 # Callback: Modellstart bei Buttonklick
 @callback(
-    Output("model-result-store", "data"), # << speichern Ergebnis im Store
-    Output("submit-button", "children"), # << leitet auf Seite "/savings" um
-    Output("redirect", "pathname"),
+    Output("model-result-store", "data"),
+    Output("submit-button", "children"),
     Input("submit-button", "n_clicks"),
+    Input("reset-button", "n_clicks"),
+    State("householdname", "value"),
+    State("upload-data", "contents"),
     State("latitude", "value"),
     State("longitude", "value"),
     State("capacity", "value"),
@@ -50,35 +53,57 @@ def handle_csv_upload(contents, filename):
     State("start-date", "value"),
     State("end-date", "value"),
     State("start-date-forecast", "value"),
-    State("model-choice", "value"),
     prevent_initial_call=True
 )
-def handle_model_submit(n_clicks, lat, lon, cap, loss, tilt, azimuth,
-                        annual_cons, start_date, end_date, forecast_start, model_choice):
+def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat, lon, cap, loss, tilt, azimuth,
+                        annual_cons, start_date, end_date, forecast_start):
+    
+    triggered_id = callback_context.triggered_id
 
-    try:
-        result = run_model_pipeline(lat, lon, cap, loss, tilt, azimuth,
-                                    annual_cons, start_date, end_date,
-                                    forecast_start, model_choice)
-        
-        # Eingaben & Ergebnis gemeinsam speichern
-        result_data = {
-            "latitude": lat,
-            "longitude": lon,
-            "capacity": cap,
-            "loss": loss,
-            "tilt": tilt,
-            "azimuth": azimuth,
-            "annual_consumption": annual_cons,
-            "start_date": start_date,
-            "end_date": end_date,
-            "forecast_start": forecast_start,
-            "model": result["model"],
-            "costs": result["costs"],
-        }
-        return result_data, dbc.Alert("Modell erfolgreich ausgeführt!", color="success"), "/savings"
+    # Abbruch-Button gedrückt → Store leeren
+    if triggered_id == "reset-button":
+        return {}, "Modell starten"
+    
+    # Submit gedrückt → Modell starten
+    if triggered_id == "submit-button":
+        try:
+            if file_contents is None:
+                return {}, dbc.Alert("Bitte lade zuerst eine CSV-Datei hoch.", color="warning")
+            
+            df = load_csv_as_df(file_contents)
+            if "Time" not in df.columns:
+                df.rename(columns={"date": "Time"}, inplace=True)
+
+            #alle Spalten, bis auf Time und hh_name löschen
+            if hh_name not in df.columns:
+                return {}, dbc.Alert(f"Die Spalte '{hh_name}' ist nicht in der CSV-Datei enthalten. Die CSV Datei muss die Spalten Time und bspw. SFH3_P_TOT haben", color="danger")
+            else:
+                df = df.drop(columns=[col for col in df.columns if col != "Time" and col != hh_name])
+                df.rename(columns={hh_name: "Load"}, inplace=True)
+
+            result = run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
+                                        annual_cons, start_date, end_date,
+                                        forecast_start, model_choice ="montecarlo")
+            
+            # Eingaben & Ergebnis gemeinsam speichern
+            result_data = {}
+            result_data = {
+                "latitude": lat,
+                "longitude": lon,
+                "capacity": cap,
+                "loss": loss,
+                "tilt": tilt,
+                "azimuth": azimuth,
+                "annual_consumption": annual_cons,
+                "start_date": start_date,
+                "end_date": end_date,
+                "forecast_start": forecast_start,
+                "model": result["model"],
+                "costs": result["costs"],
+            }
+            return result_data, dbc.Alert("Modell erfolgreich ausgeführt!", color="success")
 
 
-    except Exception as e:
-        return dbc.Alert(f"Fehler beim Ausführen des Modells: {str(e)}", color="danger")
+        except Exception as e:
+            return {}, dbc.Alert(f"Fehler beim Ausführen des Modells: {str(e)}", color="danger")
 

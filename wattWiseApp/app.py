@@ -6,7 +6,7 @@ import controller
 
 
 app = dash.Dash(__name__,
-                use_pages=True,
+                use_pages=True,suppress_callback_exceptions=True,
                 external_stylesheets=[dbc.themes.BOOTSTRAP, "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" ])
 
 app.layout = dbc.Container([
