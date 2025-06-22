@@ -53,6 +53,7 @@ def get_solar_data_from_api(ninja_token, lat: float, lon: float, start: str, end
     
     return df
 
+
 def load_solar_data_from_csv(filepath: str) -> pd.DataFrame:
     """
     Lädt eine zuvor gespeicherte PV-Erzeugungsdatei (CSV) ein.
@@ -67,6 +68,7 @@ def load_solar_data_from_csv(filepath: str) -> pd.DataFrame:
     df = pd.read_csv(filepath, index_col='Time', parse_dates=True)
     return df
 
+
 def calculate_net_load_with_pv(load_df, solar_df, load_df_col='Load'):
     """
     Berechnet den tatsächlichen Stromverbrauch unter Berücksichtigung der PV-Anlage.
@@ -79,11 +81,16 @@ def calculate_net_load_with_pv(load_df, solar_df, load_df_col='Load'):
         DataFrame: Nettoverbrauch (Strombedarf abzüglich PV-Erzeugung).
     """
     load_with_pv_df = load_df.copy()
+
+    # Ziehe stündlich die PV-Erzeugung vom Verbrauch ab
     load_with_pv_df['Load'] = load_df[load_df_col].sub(solar_df['Electricity'], fill_value=0) #Zieht stundenweise den PV-Ertrag vom Verbrauch ab.
+    
+     # Negative Werte (Überschüsse) auf 0 setzen → werden nicht als Netzlast gezählt
     load_with_pv_df['Load'] = load_with_pv_df['Load'].apply(lambda x: max(x, 0)) # Überschuss = Einspeisung, zählt hier aber nicht als "Last"
     
-    print(f"Total Nettoverbrauch (Load with PV):")
-    print(load_with_pv_df['Load'].sum())
+    # Debug-Ausgabe (nur für Entwicklung, später entfernen oder loggen)
+    #print(f"Total Nettoverbrauch (Load with PV):")
+    #print(load_with_pv_df['Load'].sum())
 
     return load_with_pv_df
 
