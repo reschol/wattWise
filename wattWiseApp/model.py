@@ -168,24 +168,28 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
         fill_value=0,
         year=customer_data_year 
     )
+
     # Load prediction
     weekday_profile_dict = build_weekday_profile_dict(df, timestamp_col='Time', load_col='Load',  mode = 'weekday')
     simulations = load_or_run_simulation(hh_name, weekday_profile_dict, forecast_year, 100, mode = 'weekday')# Lade simulierte Lastprofile aus Cache (wenn vorhanden), oder führe neue Monte-Carlo-Simulation durch 
     seasonal_factor = calculate_seasonal_factor_per_x(slp, x="Month")
     adjusted_simulations = apply_seasonal_factors(simulations, seasonal_factor, by='Month')
-    final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, 3000)
+    final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, annual_consumption) 
 
     # Load solar data
     #start_date_forecast muss in FOrm YYYY-MM-DD sein, also 2020-01-01, end_date_forecast muss 365 Tage später sein
     start_date_forecast_solar = pd.to_datetime(start_date_forecast).strftime('%Y-%m-%d')
     end_date_forecast_solar = (pd.to_datetime(start_date_forecast) + pd.Timedelta(days=365)).strftime('%Y-%m-%d')
-    #TODO: Error: Cannot parse given date range beim Aufruf der API
-    solar_df = get_solar_data_from_api(ninja_token, lat, lon, start_date_forecast, end_date_forecast, cap, loss, tilt, azimuth)
-    print("Spalten in solar_df:", solar_df.columns)
-    print("Index von solar_df:", solar_df.index)
-    if solar_df is None:
-        raise ValueError("Fehler beim Abrufen der Solar-Daten. Bitte überprüfe die API-Verbindung oder die Eingabewerte.")
+    #Spalten: Time und Electricity
+    #Index: Time (UTC)
+    solar_df = get_solar_data_from_api(ninja_token, lat, lon, start_date_forecast_solar, end_date_forecast_solar, cap, loss, tilt, azimuth)
+    solar_df = load_solar_data_from_csv(f'data/renewables_ninja_data/pv_{start_date_forecast_solar}_{end_date_forecast_solar}_lat{lat}_lon{lon}_cap{cap}.csv')
+    #Results
     total_annual_solar_yield = solar_df['Electricity'].sum()
+    final_sim_with_pv = [calculate_net_load_with_pv(sim, solar_df) for sim in final_simulations] # wichtig hier final simulations, da diese bereits skaliert sind. Danavh nicht nochmal saklieren, sonst verlieren wir die Einsparung durch PV
+    
+    
+           
 
     # Price
     df_spot_data_requested = load_spot_market_prices(start_date_forecast, start_date_forecast + pd.Timedelta(days=365), country_code = 'DE_LU', data_dir = r'D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\entsoe_data\normal_hourly', index_new_df_col= 'Time')
@@ -198,18 +202,37 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
     
     
     #Claculate costs
+
+    #without PV
     sim_costs = [calculate_annual_dynamic_costs(sim, df_dynamic_price, load_col='Load') for sim in final_simulations]
     sim_costs_round = [round(cost, 2) for cost in sim_costs]
     static_price_per_kwh = get_fixed_price_per_kwh(2020,'data/electricity_prices_yearly/electricity_prices_yearly2014_2024.csv', "Summe")
     sim_costs_static = [calculate_annual_static_costs(sim, static_price_per_kwh, load_col="Load") for sim in final_simulations]
+    avg_sim_costs_dynamic = sum(sim_costs) / len(sim_costs)
+    avg_sim_costs_static = sum(sim_costs_static) / len(sim_costs_static)
 
+    #with PV
+    sim_costs_with_pv = [calculate_annual_dynamic_costs(sim, df_dynamic_price, load_col='Load') for sim in final_sim_with_pv]
+    sim_costs_with_pv_round = [round(cost, 2) for cost in sim_costs_with_pv]
+    sim_costs_with_pv_static = [calculate_annual_static_costs(sim, static_price_per_kwh, load_col="Load") for sim in final_sim_with_pv]
+    avg_sim_costs_dynamic_with_pv = sum(sim_costs_with_pv) / len(sim_costs_with_pv)
+    avg_sim_costs_static_with_pv = sum(sim_costs_with_pv_static) / len(sim_costs_with_pv_static)
 
     
     return {
         "status": "success",
         "model": model_choice,
-        "costs": sim_costs_round,
-        "static_costs": sim_costs_static,
+        "dynamic_costs_wo_pv_all_sim": sim_costs_round,
+        "static_costs_wo_pv_all_sim": sim_costs_static,
+        "load_profiles_wo_pv_all_sim": final_simulations,
+        "avg_dynamic_costs_wo_pv": avg_sim_costs_dynamic,
+        "avg_static_costs_wo_pv": avg_sim_costs_static,
+
+        "load_profiles_w_pv_all_sim": final_sim_with_pv,
+        "dynamic_costs_w_pv_all_sim": sim_costs_with_pv_round,
+        "static_costs_w_pv_all_sim": sim_costs_with_pv_static,
+        "avg_dynamic_costs_w_pv": avg_sim_costs_dynamic_with_pv,
+        "avg_static_costs_w_pv": avg_sim_costs_static_with_pv,
         "solar_yield": solar_df,
         "annual solar_yield": total_annual_solar_yield,
     }

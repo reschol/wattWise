@@ -298,6 +298,8 @@ def scale_load_profile_to_annual_consumption(df: list, annual_consumption: float
         profile['Load'] *= scaling_factor
         scaled_profiles.append(profile)
 
+    for i, profile in enumerate(scaled_profiles):
+        print(f"Simulation {i+1}: Jahresverbrauch nach Skalierung: {profile['Load'].sum():.2f} kWh")
     return scaled_profiles
 
 

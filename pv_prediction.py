@@ -22,26 +22,28 @@ def get_solar_data_from_api(ninja_token, lat: float, lon: float, start: str, end
         azimuth (int): Azimutwinkel der PV-Anlage in Grad. Default ist 180°.
 
     Returns:
-        DataFrame: PV-Erzeugung.
+        DataFrame: PV-Erzeugung. Einheit:  .
     """
     
     raw_data = fetch_solar_data(
-        token=ninja_token,
-        lat=lat,
-        lon=lon,
-        start=start,
-        end=end,
-        capacity=capacity,
-        system_loss=system_loss,
-        tilt=tilt,
-        azimuth=azimuth
+       ninja_token,
+        lat,
+        lon,
+        start,
+        end,
+        capacity,
+        system_loss,
+        tilt,
+        azimuth
     )
     df = raw_data[0]
+    print(df.head(24))
 
     #make Time column the index and tz-aware
-    df.to_csv('data/renewables_ninja_data/pv_Karlsruhe_2020.csv', index=True)
-    df = df.set_index('Time')
-    df.index = df.index.tz_localize('UTC')
+    #df = df.set_index('Time')
+    #df.index = df.index.tz_localize('UTC')
+    df.to_csv(f'data/renewables_ninja_data/pv_{start}_{end}_lat{lat}_lon{lon}_cap{capacity}.csv', index=True)
+    
     return df
 
 def load_solar_data_from_csv(filepath: str) -> pd.DataFrame:
@@ -69,9 +71,12 @@ def calculate_net_load_with_pv(load_df, solar_df, load_df_col='Load'):
         DataFrame: Nettoverbrauch (Strombedarf abzüglich PV-Erzeugung).
     """
     load_with_pv_df = load_df.copy()
-    load_with_pv_df['Load'] = load_df[load_df_col].sub(solar_df['Electricity'], fill_value=0)
-    load_with_pv_df['Load'] = load_with_pv_df['Load'].apply(lambda x: max(x, 0))
+    load_with_pv_df['Load'] = load_df[load_df_col].sub(solar_df['Electricity'], fill_value=0) #Zieht stundenweise den PV-Ertrag vom Verbrauch ab.
+    load_with_pv_df['Load'] = load_with_pv_df['Load'].apply(lambda x: max(x, 0)) # Überschuss = Einspeisung, zählt hier aber nicht als "Last"
     
+    print(f"Total Nettoverbrauch (Load with PV):")
+    print(load_with_pv_df['Load'].sum())
+
     return load_with_pv_df
 
 

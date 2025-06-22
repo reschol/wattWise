@@ -51,14 +51,24 @@ def display_results(data):
     ], className="mt-4 shadow-sm")
 
     # Datenwerte & Plot
-    static_cost = data.get('static_costs', None)
-    dynamic_cost = data.get('dynamic_costs', data.get('costs', None))
-    pv_cost = data.get('dynamic_costs_pv', None)
+    static_cost_wo_pv = data.get('static_costs_wo_pv')
+    dynamic_cost_wo_pv = data.get('dynamic_costs_wo_pv')
+    avg_dynamic_cost_wo_pv = data.get('avg_dynamic_costs_wo_pv')
+    avg_static_cost_wo_pv = data.get('avg_static_costs_wo_pv')
+
+
+    dynamic_cost_w_pv = data.get('dynamic_costs_w_pv')
+    static_cost_w_pv = data.get('static_costs_w_pv')
+    avg_dynamic_cost_w_pv = data.get('avg_dynamic_costs_w_pv')
+    avg_static_cost_w_pv = data.get('avg_static_costs_w_pv')
+
+    solar_yield = data.get('annual_solar_yield')
+    status = data.get('status')
 
     fig = go.Figure(data=[
-        go.Bar(name="Statisch", x=["Tarifoptionen"], y=[static_cost], marker_color="#6c757d"),
-        go.Bar(name="Dynamisch", x=["Tarifoptionen"], y=[dynamic_cost], marker_color="#0d6efd"),
-        go.Bar(name="Dynamisch + PV", x=["Tarifoptionen"], y=[pv_cost], marker_color="#198754")
+        go.Bar(name="Avg. Statisch (ohne PV)", x=["Tarifoptionen"], y=[avg_static_cost_wo_pv]),
+        go.Bar(name="Avg. Dynamisch (ohne PV)", x=["Tarifoptionen"], y=[avg_dynamic_cost_wo_pv]),
+        go.Bar(name="Avg. Dynamisch (mit PV)", x=["Tarifoptionen"], y=[avg_dynamic_cost_w_pv]),
     ])
     fig.update_layout(
         title={"text": "Vergleich forecasted annual Costs (€)", "x": 0.5},
@@ -80,9 +90,9 @@ def display_results(data):
         dbc.CardBody(
             dbc.Row([
                 dbc.Col([
-                    html.P(f"Statischer Tarif: {static_cost} €"),
-                    html.P(f"Dynamischer Tarif: {dynamic_cost} €"),
-                    html.P(f"Dynamisch + PV: {pv_cost} €"),
+                    html.P(f"Statisch (ohne PV): {static_cost_wo_pv} €"),
+                    html.P(f"Dynamisch (ohne PV): {dynamic_cost_wo_pv} €"),
+                    html.P(f"Dynamisch (mit PV): {dynamic_cost_w_pv} €"),
                 ], width=6, className="d-flex align-items-center", style={"minHeight": "250px"}),
 
                 dbc.Col([

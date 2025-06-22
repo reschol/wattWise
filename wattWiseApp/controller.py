@@ -1,6 +1,7 @@
 from dash import Input, Output, State, callback, html, callback_context, no_update, dcc
 import dash_bootstrap_components as dbc
 from model import load_csv_as_df, save_dataframe_to_csv, run_model_pipeline
+import traceback
 
 
 #Datei upload
@@ -99,11 +100,23 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
                 "end_date": end_date,
                 "forecast_start": forecast_start,
                 "model": result["model"],
-                "costs": result["costs"],
+                "status": result["status"],
+
+                "dynamic_costs_wo_pv": result["dynamic_costs_wo_pv_all_sim"],
+                "static_costs_wo_pv": result["static_costs_wo_pv_all_sim"],
+                "avg_dynamic_costs_wo_pv": result["avg_dynamic_costs_wo_pv"],
+                "avg_static_costs_wo_pv": result["avg_static_costs_wo_pv"],
+
+                "dynamic_costs_w_pv": result["dynamic_costs_w_pv_all_sim"],
+                "static_costs_w_pv": result["static_costs_w_pv_all_sim"],
+                "avg_dynamic_costs_w_pv": result["avg_dynamic_costs_w_pv"],
+                "avg_static_costs_w_pv": result["avg_static_costs_w_pv"],
+                "annual_solar_yield": result["annual solar_yield"],
             }
             return result_data, dbc.Alert("Modell erfolgreich ausgeführt!", color="success")
 
 
         except Exception as e:
-            return {}, dbc.Alert(f"Fehler beim Ausführen des Modells: {str(e)}", color="danger")
+            tb_str = traceback.format_exc()  # gibt den Traceback als String zurück
+            return {}, dbc.Alert(f"Fehler beim Ausführen des Modells:\n{str(e)}\n\nTraceback:\n{tb_str}", color="danger")
 
