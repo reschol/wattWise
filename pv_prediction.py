@@ -1,6 +1,10 @@
+# Standardbibliotheken und externe Abhängigkeiten importieren
+import json
 import json
 import pandas as pd
 import numpy as np
+
+# Utility-Funktion zur API-Abfrage von Renewables.ninja
 from src.utils.renewables_ninja import fetch_solar_data
 
 
@@ -15,7 +19,7 @@ def get_solar_data_from_api(ninja_token, lat: float, lon: float, start: str, end
         lat (float): Breitengrad. 50.0 # Karlsruhe
         lon (float): Längengrad. 8.0 # Karlsruhe
         start (str): Startdatum im Format 'YYYY-MM-DD'.
-        end (str): Enddatum im Format 'YYYY-MM-DD'. # nur bis zum 30., da 2020 ein Schaltjahr war, und wir sonst nicht auf 365 Tage kommen
+        end (str): Enddatum im Format 'YYYY-MM-DD'. 
         capacity (float): Kapazität der PV-Anlage in kW. Default ist 0.8 kW. 
         system_loss (float): Systemverluste in %. Default ist 10%.
         tilt (int): Neigungswinkel der PV-Anlage in Grad. Default ist 90°.
@@ -24,7 +28,7 @@ def get_solar_data_from_api(ninja_token, lat: float, lon: float, start: str, end
     Returns:
         DataFrame: PV-Erzeugung. Einheit:  .
     """
-    
+    # API-Abfrage durchführen → Rohdaten (inkl. DataFrame und Metadaten)
     raw_data = fetch_solar_data(
        ninja_token,
         lat,
@@ -36,18 +40,22 @@ def get_solar_data_from_api(ninja_token, lat: float, lon: float, start: str, end
         tilt,
         azimuth
     )
-    df = raw_data[0]
-    print(df.head(24))
 
-    #make Time column the index and tz-aware
+    # Extrahiere den erzeugten DataFrame
+    df = raw_data[0]
+
+    #Optional: Time-Index setzen und Zeitzone anpassen
     #df = df.set_index('Time')
     #df.index = df.index.tz_localize('UTC')
+
+    # Speicherung als CSV für spätere Verwendung / Debugging
     df.to_csv(f'data/renewables_ninja_data/pv_{start}_{end}_lat{lat}_lon{lon}_cap{capacity}.csv', index=True)
     
     return df
 
 def load_solar_data_from_csv(filepath: str) -> pd.DataFrame:
     """
+    Lädt eine zuvor gespeicherte PV-Erzeugungsdatei (CSV) ein.
     CSV-Datei der PV-Daten einlesen und index als zeitzonenbewusst setzen.
 
     Parameters:

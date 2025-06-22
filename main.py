@@ -83,10 +83,12 @@ sfh_2019 = prepare_household_data(data_2019, keyword=keyword, exclude_columns=ex
 #random_start_date = random.choice(pd.date_range(pd.Timestamp(start_2019), pd.Timestamp(end_2019) - pd.Timedelta(days=14), tz='UTC'))
 #random_end_date = random_start_date + pd.Timedelta(days=14)
 random_start_date = '2019-01-01 00:00:00+00:00' #TODO : random choice
-random_end_date = '2019-01-14 00:00:00+00:00' #TODO : random choice
+random_end_date = '2019-01-15 00:00:00+00:00' #TODO : random choice
 testhousehold = 'SFH4_P_TOT' #TODO: alle HH 
 
+
 two_week_data = filter_two_week_data(sfh_2019, random_start_date, random_end_date)
+    
 print("Filtered two-week data:", two_week_data)
 random_household_two_week = get_household_profile(two_week_data, testhousehold)
 

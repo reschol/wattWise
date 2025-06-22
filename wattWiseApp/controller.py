@@ -1,7 +1,9 @@
 from dash import Input, Output, State, callback, html, callback_context, no_update, dcc
 import dash_bootstrap_components as dbc
+import pandas as pd
 from model import load_csv_as_df, save_dataframe_to_csv, run_model_pipeline
 import traceback
+from plots import plot_user_friendly_consumption_profile, plot_daily_patterns_comparison, plot_layperson_friendly_profile
 
 
 #Datei upload
@@ -61,6 +63,8 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
     
     triggered_id = callback_context.triggered_id
 
+    plot_start_date_formatted = pd.to_datetime(start_date, dayfirst=True).strftime('%Y-%m-%d')
+
     # Abbruch-Button gedrückt → Store leeren
     if triggered_id == "reset-button":
         return {}, "Modell starten"
@@ -72,6 +76,7 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
                 return {}, dbc.Alert("Bitte lade zuerst eine CSV-Datei hoch.", color="warning")
             
             df = load_csv_as_df(file_contents)
+
             if "Time" not in df.columns:
                 df.rename(columns={"date": "Time"}, inplace=True)
 
@@ -85,6 +90,13 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
             result = run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
                                         annual_cons, start_date, end_date,
                                         forecast_start, model_choice ="montecarlo")
+            
+            #Plots erstellen und speichern
+            #plot_user_friendly_consumption_profile(df=df, column_name="Load", start_date='2019-01-01') #Datei wird gespeichert als column_name+"barplots.svg"
+            #plot_daily_patterns_comparison(df=df, column_name="Load", start_date=plot_start_date_formatted) #Datei wird gespeichert als column_name+"linechart_raw_patterns.svg"
+            #plot_layperson_friendly_profile(df=df, column_name="Load", start_date=plot_start_date_formatted) #Datei wird gespeichert als column_name+"linechart_intervals.svg"
+            
+            
             
             # Eingaben & Ergebnis gemeinsam speichern
             result_data = {}
@@ -112,6 +124,9 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
                 "avg_dynamic_costs_w_pv": result["avg_dynamic_costs_w_pv"],
                 "avg_static_costs_w_pv": result["avg_static_costs_w_pv"],
                 "annual_solar_yield": result["annual solar_yield"],
+
+                #Plots
+                "pattern_plot_path": f"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\Loadbarplots.svg",
             }
             return result_data, dbc.Alert("Modell erfolgreich ausgeführt!", color="success")
 
