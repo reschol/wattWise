@@ -1,10 +1,15 @@
+# model.py – Datenverarbeitung & Modelllogik (CSV, Lastprofile, PV, Preise)
+
 import base64
 import io
 import sys
 import os
 import json
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import pandas as pd
+
+# Erlaube Importe aus dem übergeordneten Verzeichnis (z. B. für 'main.py')
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 
 from pv_prediction import (
     calculate_net_load_with_pv, 
@@ -28,17 +33,11 @@ from montecarlo import (
 
 from main import (
     fill_missing_hours,
-    load_or_fetch_solar_data
 )
 
-# Define the API tokens
-# Personal renewables.ninja API token
-# ninja_token = "" #your renewables.ninja API token (to be stored in a JSON which is the gitignore and thus never comitted/pushed)
-# entsoe_api_key = "" #your entsoe API token (to be stored in a JSON which is the gitignore and thus never comitted/pushed)
-# recommendation: use a JSON file called secrets.json, that is already in the gitignore and should thus be ignored by git
+# Lade API-Schlüssel sicher aus secrets.json (nicht im Git!)
 with open(r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\secrets.json") as f:
     secrets = json.load(f)
-
 ninja_token = secrets.get("ninja_token")
 entsoe_api_key = secrets.get("entsoe_api_key")
 
@@ -65,6 +64,7 @@ def load_csv_as_df(encoded_contents: str) -> pd.DataFrame:
     except Exception as e:
         raise ValueError(f"Fehler beim Einlesen der CSV-Datei: {e}")
 
+
 def save_dataframe_to_csv(df: pd.DataFrame, filename: str, folder: str = "data") -> str:
     """
     Speichert ein DataFrame als CSV im angegebenen Ordner.
@@ -81,6 +81,7 @@ def save_dataframe_to_csv(df: pd.DataFrame, filename: str, folder: str = "data")
     path = os.path.join(folder, filename)
     df.to_csv(path, index=False)
     return path
+
 
 # 2. Load additional data
 def load_and_adjust_standard_load_profile(file_path, sheet_name, time_col = "Time", value_cols: list = ['H00 [kWh]'], fill_value=0, year: int = 2019) -> pd.DataFrame:
@@ -123,15 +124,11 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
                        annual_consumption, start_date, end_date,
                        forecast_start, model_choice = "montecarlo") -> dict:
     """
-    Führt die Modellpipeline aus 
-    Lastprognose: 
-
-    PV-Prognose:
-    - get_solar_data_from_api
-
-    Price-Prognose:
-
-
+    Führt die gesamte Modellpipeline aus:
+    - Simulation des Lastprofils (Monte Carlo)
+    - PV-Erzeugung
+    - Strompreismodelle (dynamisch + statisch)
+    - Kostenschätzung mit & ohne PV
 
     Args:
         hh_name (str): Name des Haushalts, z. B. "SFH3_P_TOT"
@@ -151,13 +148,16 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
     Returns:
         dict: Ergebnisse wie simulierte Kosten und Fehlermaß.
     """
-    #prepare data
+
+
+    #Zeiträume vorbereiten
     start_date_forecast = pd.to_datetime(forecast_start)
     end_date_forecast = start_date_forecast + pd.Timedelta(days=365)
     forecast_year = pd.to_datetime(start_date_forecast).year
     start_date_customer_data = pd.to_datetime(start_date)
     end_date_customer_data = pd.to_datetime(end_date)
     customer_data_year = pd.to_datetime(start_date_customer_data).year
+
 
     # Load standard load profile
     slp = load_and_adjust_standard_load_profile(
@@ -169,12 +169,14 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
         year=customer_data_year 
     )
 
-    # Load prediction
+
+    # Load prediction - Verbrauch simulieren (100 MC-Samples)
     weekday_profile_dict = build_weekday_profile_dict(df, timestamp_col='Time', load_col='Load',  mode = 'weekday')
     simulations = load_or_run_simulation(hh_name, weekday_profile_dict, forecast_year, 100, mode = 'weekday')# Lade simulierte Lastprofile aus Cache (wenn vorhanden), oder führe neue Monte-Carlo-Simulation durch 
     seasonal_factor = calculate_seasonal_factor_per_x(slp, x="Month")
     adjusted_simulations = apply_seasonal_factors(simulations, seasonal_factor, by='Month')
     final_simulations = scale_load_profile_to_annual_consumption(adjusted_simulations, annual_consumption) 
+
 
     # Load solar data
     #start_date_forecast muss in FOrm YYYY-MM-DD sein, also 2020-01-01, end_date_forecast muss 365 Tage später sein
@@ -190,17 +192,16 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
     
     
            
-
-    # Price
+    # Strompreise laden (ENTSOE Spotmarkt + Fixpreise)
     df_spot_data_requested = load_spot_market_prices(start_date_forecast, start_date_forecast + pd.Timedelta(days=365), country_code = 'DE_LU', data_dir = r'D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\entsoe_data\normal_hourly', index_new_df_col= 'Time')
     print("df_spot_data_requested.head():", df_spot_data_requested.head())
     df_dynamic_price = calculate_dynamic_price_with_fees(df_spot_data_requested, start_date_forecast, start_date_forecast + pd.Timedelta(days=365))
     
-
     static_prices_df_2014_2024 = pd.read_csv('data/electricity_prices_yearly/electricity_prices_yearly2014_2024.csv', delimiter=',', decimal='.', parse_dates=['Year'])
     static_prices_df_2014_2024['Year'] = pd.to_datetime(static_prices_df_2014_2024['Year']).dt.year # Year als Jahreszahl
     
     
+
     #Claculate costs
 
     #without PV
@@ -218,7 +219,9 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
     avg_sim_costs_dynamic_with_pv = sum(sim_costs_with_pv) / len(sim_costs_with_pv)
     avg_sim_costs_static_with_pv = sum(sim_costs_with_pv_static) / len(sim_costs_with_pv_static)
 
-    
+
+
+    #Ergebnis zurückgeben
     return {
         "status": "success",
         "model": model_choice,
