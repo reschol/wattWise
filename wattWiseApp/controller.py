@@ -1,3 +1,5 @@
+# controller.py – Zentrale Logik zur Datenverarbeitung & Modellsteuerung
+
 from dash import Input, Output, State, callback, html, callback_context, no_update, dcc
 import dash_bootstrap_components as dbc
 import pandas as pd
@@ -6,7 +8,10 @@ import traceback
 from plots import plot_user_friendly_consumption_profile, plot_daily_patterns_comparison, plot_layperson_friendly_profile
 
 
-#Datei upload
+# -----------------------
+# Upload-Callback: CSV verarbeiten & anzeigen
+# -----------------------
+
 @callback(
     Output("upload-output", "children"),
     Input("upload-data", "contents"),
@@ -15,12 +20,14 @@ from plots import plot_user_friendly_consumption_profile, plot_daily_patterns_co
 )
 
 def handle_csv_upload(contents, filename):
+    """Verarbeitet die hochgeladene CSV-Datei, speichert sie ab und zeigt eine Vorschau an."""
     if contents is None:
         return dbc.Alert("Keine Datei hochgeladen.", color="warning")
 
     try:
         df = load_csv_as_df(contents)
         saved_path = save_dataframe_to_csv(df, filename)
+        
         return dbc.Card(
             dbc.CardBody([
                 html.Div([
@@ -38,7 +45,10 @@ def handle_csv_upload(contents, filename):
 
 
 
-# Callback: Modellstart bei Buttonklick
+# -----------------------
+# Haupt-Callback: Modell starten bei Klick
+# -----------------------
+
 @callback(
     Output("model-result-store", "data"),
     Output("submit-button", "children"),
@@ -60,10 +70,10 @@ def handle_csv_upload(contents, filename):
 )
 def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat, lon, cap, loss, tilt, azimuth,
                         annual_cons, start_date, end_date, forecast_start):
+    """Startet das Modell bei Klick auf 'Modell starten' oder setzt alles zurück bei Klick auf 'Zurücksetzen'."""
+
     
     triggered_id = callback_context.triggered_id
-
-    plot_start_date_formatted = pd.to_datetime(start_date, dayfirst=True).strftime('%Y-%m-%d')
 
     # Abbruch-Button gedrückt → Store leeren
     if triggered_id == "reset-button":
@@ -80,7 +90,7 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
             if "Time" not in df.columns:
                 df.rename(columns={"date": "Time"}, inplace=True)
 
-            #alle Spalten, bis auf Time und hh_name löschen
+            # Nur die relevanten Spalten behalten: Time & Load
             if hh_name not in df.columns:
                 return {}, dbc.Alert(f"Die Spalte '{hh_name}' ist nicht in der CSV-Datei enthalten. Die CSV Datei muss die Spalten Time und bspw. SFH3_P_TOT haben", color="danger")
             else:
@@ -95,7 +105,6 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
             #plot_user_friendly_consumption_profile(df=df, column_name="Load", start_date='2019-01-01') #Datei wird gespeichert als column_name+"barplots.svg"
             #plot_daily_patterns_comparison(df=df, column_name="Load", start_date=plot_start_date_formatted) #Datei wird gespeichert als column_name+"linechart_raw_patterns.svg"
             #plot_layperson_friendly_profile(df=df, column_name="Load", start_date=plot_start_date_formatted) #Datei wird gespeichert als column_name+"linechart_intervals.svg"
-            
             
             
             # Eingaben & Ergebnis gemeinsam speichern
@@ -125,8 +134,8 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
                 "avg_static_costs_w_pv": result["avg_static_costs_w_pv"],
                 "annual_solar_yield": result["annual solar_yield"],
 
-                #Plots
-                "pattern_plot_path": f"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\Loadbarplots.svg",
+                #Plots #TODO
+                #"pattern_plot_path": f"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\Loadbarplots.svg",
             }
             return result_data, dbc.Alert("Modell erfolgreich ausgeführt!", color="success")
 
