@@ -11,6 +11,7 @@ We provide some initial files for a quick start, which in large parts are based 
 *for executing the code you need working API keys for Renewables.ninja and Entso-e. Also install the requirements by calling pip install -r requirements.txt*.  
 If you use additional packages please add that to the requirements file
 
+
 # Projektstruktur: WattWise Dash App
 
 ## Features
@@ -116,4 +117,59 @@ Time,SFH3_P_TOT
 2019-01-01 01:00,0.20
 2019-01-01 02:00,0.22
 ...
+```
 
+
+
+# Projektstruktur: WattWise Haushaltslastprofil-Simulation & Prognosemodellierung
+
+#### Dieses Projekt implementiert und vergleicht verschiedene Modelle zur Vorhersage des Stromverbrauchs einzelner Haushalte. Grundlage sind historische Verbrauchsdaten, Standardlastprofile (SLP), Wetterdaten (insbesondere PV-Erzeugung) sowie dynamische Strompreise. Die Modelle werden anhand realer Verbrauchsdaten bewertet und ermöglichen einen praxisnahen Vergleich verschiedener Prognoseansätze.
+
+
+## Inhalt
+
+### Überblick der Verbrauchsprognose-Modelle:
+
+| Modell  | Kurzbeschreibung                                                                                                    |
+|---------|---------------------------------------------------------------------------------------------------------------------|
+| **A**   | **Monte-Carlo-Modell:** 100 zufällig erzeugte Jahreslastprofile auf Basis des 2-Wochen-Haushaltsprofils. Saisonale Faktoren aus dem SLP 2019 werden angewendet. Liefert eine Verteilung möglicher Verläufe inkl. Unsicherheiten. |
+| **B1**  | **Customer-Wochen-Profil:** Einfaches Modell. Das mittlere Tagesprofil (werktags & Wochenende) der 2/4-Wochen-Daten wird auf das gesamte Jahr 2020 übertragen. |
+| **B2**  | **Hybridmodell: Customer-Wochen + SLP kombiniert** Kombination aus B1 und SLP-Profil (Standardlastprofil 2019), gewichtet nach Saison. In saisonaler Hauptzeit überwiegt das 2/4-Wochen-Profil, außerhalb dominiert das SLP. |
+
+### PV Balkon-Erzeugung integrieren
+**Ziel:** Einbezug von Photovoltaikdaten in Haushaltsverbrauchsprognosen  
+**Netto-Lastberechnung:** 
+Der Stromverbrauch des Haushalts wird stündlich um die erzeugte PV-Leistung reduziert.  
+
+**Formel:** 
+$$
+Nettoverbrauch = max(Verbrauch − PV-Erzeugung, 0)
+$$
+
+
+
+
+### Modellbewertung:
+  - Normalized Mean Absolute Error (NMAE)
+  - Stromkostenberechnung unter:
+    - dynamischem Preis (z. B. Tibber, Entso-E Spotpreise)
+    - mit & ohne PV-Eigenverbrauch
+
+## Projektstruktur
+
+```bash
+.
+├── main.py                       # Hauptskript zur Modellausführung
+├── pv_prediction.py              # PV-Datenanbindung (API + Netto-Last)
+├── montecarlo.py                 # Monte-Carlo-basierte Lastprofil-Simulation
+├── load_prediction_2week.py      # Modelle B1 & B2: Extrapolation & SLP-Kombi
+├── evaluation.py                 # NMAE- und Preisabweichungsmetriken
+├── customer_input_check.py       # Datenvorbereitung & Filterung
+├── /data                         # Eingabedaten (Haushalte, PV, Preise, SLP)
+├── /simulations_cache            # Zwischengespeicherte Simulationen (per Haushalt) um später schneller zu rechnen
+├── secrets.json                  # API-Schlüssel (ausgeschlossen per `.gitignore`)
+└── README.md                     # Projektdokumentation
+```
+
+## Weitere Entwicklungsmöglichkeiten: 
+- [ ] Randomisierung der 2-Wochen-Daten implementieren . Bisher nur auf zwei festen Wochen. Es kann aber Unterschiede geben, jenachdem wann gemessen wird.
