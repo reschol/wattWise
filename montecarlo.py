@@ -1,11 +1,14 @@
+#montecarlo.py
+
+# === Imports ===
+
 import numpy as np
 import pandas as pd
 import random
 import pickle
 import os
 
-# ---- 1. Load Data  ----
-# Standard-Lastprofil für 2019 (stündlich)
+# === 1. Laden und Vorverarbeiten des Standardlastprofils ===
 file_path = r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\slp\GGV_SLP_1000_MWh_2019_01.xlsx"
 sheet_name = "15Min - SLP 2019" # Single Load Profile 2019
 
@@ -14,7 +17,8 @@ df_standard_load_profile_2019 = pd.read_excel(file_path, sheet_name=sheet_name)
 def fill_missing_hours(df: pd.DataFrame, time_col: str = "Time", value_cols: list = None,
                        year: int = 2019, fill_value=None) -> pd.DataFrame:
     """
-    Erkennt fehlende Stunden in einem Zeitreihen-DataFrame und füllt sie optional mit fill_value (z. B. 0 oder NaN).
+    Stellt sicher, dass ein Zeitreihen-DataFrame alle 8760 Stunden eines Jahres enthält.
+    Fehlende Zeitpunkte werden mit einem Standardwert (z.B. 0 oder np.nan) ergänzt.
 
     Args:
         df (DataFrame): Zeitreihen-DataFrame mit einer Zeitspalte.
@@ -26,6 +30,7 @@ def fill_missing_hours(df: pd.DataFrame, time_col: str = "Time", value_cols: lis
     Returns:
         DataFrame mit allen 8760 Stunden (oder 8784 bei Schaltjahr), vollständig aufgefüllt.
     """
+
     df = df.copy()
     df[time_col] = pd.to_datetime(df[time_col])
     df.set_index(time_col, inplace=True)
@@ -35,55 +40,57 @@ def fill_missing_hours(df: pd.DataFrame, time_col: str = "Time", value_cols: lis
     end = f"{year}-12-31 23:00"
     full_index = pd.date_range(start=start, end=end, freq="h")
 
-    # Bestimme Spalten
+    # Bestimme relevante Spalten zum Füllen
     if value_cols is None:
         value_cols = [col for col in df.columns if col != time_col]
 
-    # Reindex & auffüllen
+   
     df_full = df.reindex(full_index)
 
     if fill_value is not None:
         df_full[value_cols] = df_full[value_cols].fillna(fill_value)
 
+    # Zurück zu regulärem DataFrame mit Zeitstempelspalte
     df_full.reset_index(inplace=True)
     df_full.rename(columns={"index": time_col}, inplace=True)
 
     return df_full
 
-#Prepare DataFrame
+
+# Vorverarbeitung: Entferne irrelevante Spalten
 df_standard_load_profile_2019.drop(columns=['Messwert-Nr.','MP von', 'MP bis'], inplace=True)
 
-#Fasse Zeitstempel pro Stunde zusammen und summiere H00 [kW] in neuer df
+# Aggregiere Viertelstunden auf Stundenbasis (aufsummiert) H00 [kW] 
 df_standard_load_profile_2019['Time'] = df_standard_load_profile_2019['Zeitstempel von'].dt.floor('h')
-
 df_agg = df_standard_load_profile_2019.groupby('Time').agg({'H00 [kW]': 'sum'}).reset_index()
 df_agg['H00 [kWh]'] = df_agg['H00 [kW]'] / 4 
 
-df_standard_load_profile_2019 = fill_missing_hours(df=df_agg, time_col='Time', value_cols=['H00 [kWh]'],
+# Fülle fehlende Stunden auf und setze auf 0 kWh
+df_standard_load_profile_2019 = fill_missing_hours(
+    df=df_agg,
+    time_col='Time',
+    value_cols=['H00 [kWh]'],
     year=2019,
-    fill_value=0 # oder np.nan
+    fill_value=0
 )
-#add 'Wochentag'
-df_standard_load_profile_2019['Weekday'] = df_standard_load_profile_2019['Time'].dt.day_name()
 
-#add Arbeitstag oder Wochenende als neue Spalte
-df_standard_load_profile_2019['Weekend'] = df_standard_load_profile_2019['Weekday'].apply(lambda x: 1 if x in ['Saturday', 'Sunday'] else 0)
-
-#add Hour and save as int
-df_standard_load_profile_2019['Hour'] = df_standard_load_profile_2019['Time'].dt.time
+# Feature Engineering: Füge Wochentag, Wochenende-Flag und Stunde hinzu
+df_standard_load_profile_2019['Weekday'] = df_standard_load_profile_2019['Time'].dt.day_name()      #add 'Wochentag'
+df_standard_load_profile_2019['Weekend'] = df_standard_load_profile_2019['Weekday'].apply(lambda x: 1 if x in ['Saturday', 'Sunday'] else 0) #add Arbeitstag oder Wochenende als neue Spalte
+df_standard_load_profile_2019['Hour'] = df_standard_load_profile_2019['Time'].dt.time #add Hour and save as int
 df_standard_load_profile_2019['Hour'] = df_standard_load_profile_2019['Hour'].apply(lambda x: x.hour)
 
-#Normalizing the values to a "average household" with 3000 kWh  
+# Normiere Lastprofil auf 3000 kWh pro Jahr (Durchschnittshaushalt) 
 df_standard_load_profile_2019['Load'] = df_standard_load_profile_2019['H00 [kWh]'] /df_standard_load_profile_2019['H00 [kWh]'].sum()*3000 # Normalized Load
 
-#Save an seaonality index for each hour on a annual mean of 1.0
+# Bestimme saisonalen Faktor je Stunde (bezogen auf Jahresschnitt 1.0)
 df_standard_load_profile_2019['Seasonal Factor'] = df_standard_load_profile_2019['Load'] / df_standard_load_profile_2019['Load'].mean() # Normalized Load
 
 
-# ------ Zwei Wochen Kundenverbrauch für 2020 (stündlich) -- hier ggf. Input ändern #TODO
-#--a) Input #TODOsiehe customer_input_check.py
 
-#--b) Funktion, die aus einem DataFrame mit Zeitstempeln und Lastwerten Dictionary erzeugt, das Wochentage als Keys und Listen von Tagesprofilen (DataFrames mit 24 Stunden) als Values enthält.
+# === 2. Kundenverbrauch: Wochenprofile aus zwei Wochen Daten erzeugen ===
+
+#--Funktion, die aus einem DataFrame mit Zeitstempeln und Lastwerten Dictionary erzeugt, das Wochentage als Keys und Listen von Tagesprofilen (DataFrames mit 24 Stunden) als Values enthält.
 def build_weekday_profile_dict(df: pd.DataFrame, timestamp_col: str = 'Time', load_col: str = 'Load', mode: str = 'weekday') -> dict:
     """
     Baut ein Dictionary mit Tagesprofilen gruppiert nach Wochentag (Monday–Sunday) oder Arbeitstag/Wochenende.
@@ -114,7 +121,7 @@ def build_weekday_profile_dict(df: pd.DataFrame, timestamp_col: str = 'Time', lo
 
     for date, group in grouped_by_day:
         if len(group) != 24:
-            continue  # überspringe unvollständige Tage
+            continue  # überspringe unvollständige Tage, nur vollständige Tagesprofile zulassen
 
         if mode == 'weekday':
             key = group['Weekday'].iloc[0]
@@ -132,7 +139,7 @@ def build_weekday_profile_dict(df: pd.DataFrame, timestamp_col: str = 'Time', lo
 
     return profile_dict
 
-#------- 2.  Jahreslastprofil erstellen-------------------
+# === 3. Jahreslastprofil per Monte-Carlo-Verfahren erstellen ===
 #--a) Pro Wochentag wähle ein Lastprofi aus two week data zufällig aus
 
 def generate_random_yearly_profile(weekday_dfs_with_load: dict, year: int, mode: str = 'weekday') -> pd.DataFrame:
@@ -303,7 +310,7 @@ def scale_load_profile_to_annual_consumption(df: list, annual_consumption: float
     return scaled_profiles
 
 
-# -------------3. Dynamische Preise integrieren------------------
+# === 4. Dynamische und statische Preise berücksichtigen ===
 #--a) Dynamische Preise laden (stündlich)
 def load_spot_market_prices(
     start_date: str,
@@ -497,6 +504,7 @@ def calculate_annual_static_costs(df_load_profile, static_price_per_kwh, load_co
     return annual_costs
 
 
+# === 5. Caching von Simulationen ===
 
 def load_or_run_simulation(household_col, profile_dict, year, n_simulations, mode: str = 'weekday'):
     """
