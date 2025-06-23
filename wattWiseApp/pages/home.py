@@ -2,7 +2,6 @@
 import dash
 from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
-import datetime
 import re
 
 dash.register_page(__name__, path="/", name="Dateneingabe")
@@ -18,7 +17,7 @@ pv_card = dbc.Card([
                 html.I(className="bi bi-info-circle me-2 .text-white-50"),
                 "Breitengrad"
             ], width=4, id="label-latitude"),
-            dbc.Col(dbc.Input(id="latitude", type="number", placeholder="z. B. 50.0"), width=3),
+            dbc.Col(dbc.Input(id="latitude", type="number", placeholder="z. B. 50.0", valid=False, invalid=False), width=3),
         ], className="mb-3"),
         dbc.Tooltip("Geografische Breite in Dezimalgrad (z. B. 50.0 für Karlsruhe).", target="label-latitude", placement="bottom"),
 
@@ -77,7 +76,7 @@ layout = dbc.Container([
         className=".text-black-50 fw-light border-bottom pb-2 mb-4"
     ),
     dbc.Form([
-        # Jahresverbrauchsfeld
+        # Haushaltsname
         dbc.Row([
             dbc.Label("Name", width=2, id="label-household-name"),
             dbc.Col(
@@ -169,15 +168,19 @@ layout = dbc.Container([
 
         dbc.Row([
             dbc.Col([
-                dbc.Button("Bestätigen", id="submit-button", color="success", outline=True, className="me-2"),
+                dbc.Button("Bestätigen", id="submit-button", color="success", outline=True)
+            ], width="auto"),
+            dbc.Col([
                 dbc.Button("Zurücksetzen", id="reset-button", color="danger", outline=True)
-            ])
-        ], className="mt-3"),
+            ], width="auto"),
+            dbc.Col([
+                dcc.Link(dbc.Button("Zu den Ergebnissen", color="primary"), href="/savings")
+            ], width="auto"),
 
+        ], className="mt-4 g-2"), # g-2: Abstand zw. Spalten
+
+        
     ]),
-    html.Div([
-        dcc.Link(dbc.Button("Zu den Ergebnissen", color="primary"), href="/savings")
-    ])
 ])
 
 
@@ -187,15 +190,78 @@ def is_valid_date_format(date_str):
     return bool(re.match(r"^\d{2}\.\d{2}\.\d{4}$", date_str))
 
 @callback(
-    Output("start-date", "invalid"),
-    Output("end-date", "invalid"),
-    Output("start-date-forecast", "invalid"),
+    Output("start-date", "invalid"), Output("start-date", "valid"),
+    Output("end-date", "invalid"), Output("end-date", "valid"),
+    Output("start-date-forecast", "invalid"), Output("start-date-forecast", "valid"),
+    Output("annual-consumption", "invalid"), Output("annual-consumption", "valid"),
+    Output("latitude", "invalid"), Output("latitude", "valid"),
+    Output("longitude", "invalid"), Output("longitude", "valid"),
+    Output("capacity", "invalid"), Output("capacity", "valid"),
+    Output("system-loss", "invalid"), Output("system-loss", "valid"),
+    Output("tilt", "invalid"), Output("tilt", "valid"),
+    Output("azimuth", "invalid"), Output("azimuth", "valid"),
+
     Input("start-date", "value"),
     Input("end-date", "value"),
     Input("start-date-forecast", "value"),
+    Input("annual-consumption", "value"),
+    Input("latitude", "value"),
+    Input("longitude", "value"),
+    Input("capacity", "value"),
+    Input("system-loss", "value"),
+    Input("tilt", "value"),
+    Input("azimuth", "value"),
 )
-def validate_dates(start_date, end_date, forecast_start):
-    invalid_start = not is_valid_date_format(start_date) if start_date else False
-    invalid_end = not is_valid_date_format(end_date) if end_date else False
-    invalid_forecast = not is_valid_date_format(forecast_start) if forecast_start else False
-    return invalid_start, invalid_end, invalid_forecast
+def validate_inputs(start_date, end_date, forecast_start,
+                    consumption, lat, lon, cap, loss, tilt, azimuth):
+    
+    # Datum: TT.MM.JJJJ
+    invalid_start = start_date is not None and not is_valid_date_format(start_date)
+    valid_start = start_date is not None and is_valid_date_format(start_date)
+
+    invalid_end = end_date is not None and not is_valid_date_format(end_date)
+    valid_end = end_date is not None and is_valid_date_format(end_date)
+
+    invalid_forecast = forecast_start is not None and not is_valid_date_format(forecast_start)
+    valid_forecast = forecast_start is not None and is_valid_date_format(forecast_start)
+
+    # Jahresverbrauch: realistisch 0–20.000 kWh
+    invalid_consumption = consumption is not None and (consumption <= 0 or consumption > 20000)
+    valid_consumption = consumption is not None and (0 < consumption <= 20000)
+
+    # Breitengrad: realistisch 30–55 (für DE)
+    invalid_lat = lat is not None and not (30 <= lat <= 55)
+    valid_lat = lat is not None and (30 <= lat <= 55)
+
+    # Längengrad: realistisch 5–15 (für DE)
+    invalid_lon = lon is not None and not (5 <= lon <= 15)
+    valid_lon = lon is not None and (5 <= lon <= 15)
+
+    # Kapazität: realistisch 0.1–20 kWp
+    invalid_cap = cap is not None and not (0.1 <= cap <= 20)
+    valid_cap = cap is not None and (0.1 <= cap <= 20)
+
+    # Systemverluste: nur zwischen 0 und 1
+    invalid_loss = loss is not None and not (0 <= loss <= 1)
+    valid_loss = loss is not None and (0 <= loss <= 1)
+
+    # Neigungswinkel: 0–90°
+    invalid_tilt = tilt is not None and not (0 <= tilt <= 90)
+    valid_tilt = tilt is not None and (0 <= tilt <= 90)
+
+    # Azimuthwinkel: 0–360°
+    invalid_azimuth = azimuth is not None and not (0 <= azimuth <= 360)
+    valid_azimuth = azimuth is not None and (0 <= azimuth <= 360)
+
+    return (
+        invalid_start, valid_start,
+        invalid_end, valid_end,
+        invalid_forecast, valid_forecast,
+        invalid_consumption, valid_consumption,
+        invalid_lat, valid_lat,
+        invalid_lon, valid_lon,
+        invalid_cap, valid_cap,
+        invalid_loss, valid_loss,
+        invalid_tilt, valid_tilt,
+        invalid_azimuth, valid_azimuth
+    )
