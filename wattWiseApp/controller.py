@@ -1,6 +1,7 @@
 # controller.py – Zentrale Logik zur Datenverarbeitung & Modellsteuerung
 
 from dash import Input, Output, State, callback, html, callback_context, no_update, dcc
+import dash
 import dash_bootstrap_components as dbc
 import pandas as pd
 from model import load_csv_as_df, save_dataframe_to_csv, run_model_pipeline
@@ -81,6 +82,8 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
     
     # Submit gedrückt → Modell starten
     if triggered_id == "submit-button":
+        if not submit_clicks or submit_clicks < 1:
+            raise dash.exceptions.PreventUpdate
         try:
             if file_contents is None:
                 return {}, dbc.Alert("Bitte lade zuerst eine CSV-Datei hoch.", color="warning")

@@ -168,14 +168,21 @@ layout = dbc.Container([
 
         dbc.Row([
             dbc.Col([
-                dbc.Button("Bestätigen", id="submit-button", color="success", outline=True)
-            ], width="auto"),
-            dbc.Col([
-                dbc.Button("Zurücksetzen", id="reset-button", color="danger", outline=True)
+                dcc.Loading(
+                    id="loading-model",
+                    type="circle",
+                    children=[
+                        dbc.Button("Modell starten", id="submit-button", color="success", outline=True)
+                    ]
+                )
             ], width="auto"),
             dbc.Col([
                 dcc.Link(dbc.Button("Zu den Ergebnissen", color="primary"), href="/savings")
             ], width="auto"),
+            dbc.Col([
+                dbc.Button("Zurücksetzen", id="reset-button", color="danger", outline=True)
+            ], width="auto"),
+            
 
         ], className="mt-4 g-2"), # g-2: Abstand zw. Spalten
 
