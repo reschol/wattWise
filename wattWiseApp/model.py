@@ -186,12 +186,17 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
     #Index: Time (UTC)
     solar_df = get_solar_data_from_api(ninja_token, lat, lon, start_date_forecast_solar, end_date_forecast_solar, cap, loss, tilt, azimuth)
     solar_df = load_solar_data_from_csv(f'data/renewables_ninja_data/pv_{start_date_forecast_solar}_{end_date_forecast_solar}_lat{lat}_lon{lon}_cap{cap}.csv')
+    
     #Results
     total_annual_solar_yield = solar_df['Electricity'].sum()
     final_sim_with_pv = [calculate_net_load_with_pv(sim, solar_df) for sim in final_simulations] # wichtig hier final simulations, da diese bereits skaliert sind. Danavh nicht nochmal saklieren, sonst verlieren wir die Einsparung durch PV
     
+    #Self-Consumption
+    total_loads_with_pv = [sim['Load'].sum() for sim in final_sim_with_pv if 'Load' in sim.columns]
+    average_total_load_with_pv = sum(total_loads_with_pv) / len(total_loads_with_pv)
+    self_consumption_sim_avg = annual_consumption- average_total_load_with_pv #Jährlicher Verbrauch - Durchschnittliche Last mit PV
     
-           
+
     # Strompreise laden (ENTSOE Spotmarkt + Fixpreise)
     df_spot_data_requested = load_spot_market_prices(start_date_forecast, start_date_forecast + pd.Timedelta(days=365), country_code = 'DE_LU', data_dir = r'D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\entsoe_data\normal_hourly', index_new_df_col= 'Time')
     print("df_spot_data_requested.head():", df_spot_data_requested.head())
@@ -238,4 +243,5 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
         "avg_static_costs_w_pv": avg_sim_costs_static_with_pv,
         "solar_yield": solar_df,
         "annual solar_yield": total_annual_solar_yield,
+        "self_consumption_sim_avg": self_consumption_sim_avg,
     }

@@ -133,6 +133,7 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
                 "avg_dynamic_costs_w_pv": result["avg_dynamic_costs_w_pv"],
                 "avg_static_costs_w_pv": result["avg_static_costs_w_pv"],
                 "annual_solar_yield": result["annual solar_yield"],
+                "self_consumption_sim_avg": result["self_consumption_sim_avg"],
 
                 #Plots #TODO
                 #"pattern_plot_path": f"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\Loadbarplots.svg",

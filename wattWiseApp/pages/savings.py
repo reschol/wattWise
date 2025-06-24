@@ -20,30 +20,32 @@ layout = dbc.Container([
         ["Mögliche Ersparnisse"],
         className=".text-black-50 fw-light border-bottom pb-2 mb-4"
     ),
-    html.Div([
-        html.Label("Abschreibungszeitraum wählen:", className="fw-bold mb-2"),
-        dcc.RadioItems(
-            id="amortisation-years",
-            options=[
-                {"label": "10 Jahre", "value": 10},
-                {"label": "5 Jahre", "value": 5}
-            ],
-            value=10,
-            labelStyle={"display": "inline-block", "marginRight": "20px"},
-            inputStyle={"marginRight": "6px"}
-        )
-    ], className="mt-2 mb-4 p-3 border rounded shadow-sm bg-light"),
+
+    # Optional: Radio-Buttons für die Auswahl des Abschreibungszeitraums. WEnn aktiviert, dann in Callback einfügen und display_results übergeben
+    # html.Div([
+    #     html.Label("Abschreibungszeitraum wählen:", className="fw-bold mb-2"),
+    #     dcc.RadioItems(
+    #         id="amortisation-years",
+    #         options=[
+    #             {"label": "10 Jahre", "value": 10},
+    #             {"label": "5 Jahre", "value": 5}
+    #         ],
+    #         value=10,
+    #         labelStyle={"display": "inline-block", "marginRight": "20px"},
+    #         inputStyle={"marginRight": "6px"}
+    #     )
+    # ], className="mt-2 mb-4 p-3 border rounded shadow-sm bg-light"),
+
     html.Div(id="conditional-content"),
 ], className="mt-4")
-
 
 # Callback zur Anzeige der Ergebnisse (wird ausgelöst, sobald Daten im Store sind)
 @callback(
     Output("conditional-content", "children"),
     Input("model-result-store", "data"),  # Store aus controller.py
-    Input("amortisation-years", "value"),
+    # Input("amortisation-years", "value"), wenn übergeben werden soll, dann hier aktivieren und in display_results übergeben
 )
-def display_results(data, years):
+def display_results(data):
     # 1. Datenprüfung – muss ganz am Anfang stehen!
     if not data:
         return dbc.Alert([
@@ -61,7 +63,9 @@ def display_results(data, years):
     avg_dynamic_cost_w_pv = data.get('avg_dynamic_costs_w_pv')
     avg_static_cost_w_pv = data.get('avg_static_costs_w_pv')
     solar_yield = data.get('annual_solar_yield')
-    investment_cost = 600
+    self_consumption_sim_avg = data.get('self_consumption_sim_avg')  # Eigenverbrauchsanteil
+    investment_cost = 600                                       # ggf. später ampassbar machen
+    years = 10                                                  # ggf. später ampassbar machen
 
     # 3. Dynamische Wirtschaftlichkeitsrechnung mit gewählter Laufzeit
     cost_wo_wattwise = avg_static_cost_wo_pv
@@ -156,7 +160,8 @@ def display_results(data, years):
                         html.Li("Statisch: fester Preis, keine PV"),
                         html.Li("Dynamisch: stündliche Preise, ohne/mit PV"),
                         html.Li("Box = 25.–75. Perzentil, Linie = Median, Punkt = Ausreißer"),
-                    ])
+                    ]),
+                html.Small("Tipp: Ein Doppelklick auf das Diagramm setzt den Zoom zurück.", className="text-muted fst-italic")
                 ], width=5, style={"minHeight": "250px"}),
 
                 dbc.Col([
@@ -184,9 +189,9 @@ def display_results(data, years):
             html.P("Würden sich ergeben"),
             html.Ul([
                 html.Li(f"{solar_yield} kWh PV Erzeugung"),
-                #html.Li(f"{data.get('pv_self_consumption', '—')} kWh Eigenverbrauch"), #TODO
+                html.Li(f"{round(self_consumption_sim_avg, 2)} kWh Eigenverbrauch"),
                 #html.Li(f"{data.get('pv_feed_in', '—')} kWh Netzeinspeisung"), #TODO
-                #html.Li(f"{int(data.get('own_consumption_ratio', 0) * 100)}% Eigenverbrauchsanteil") #TODO
+                html.Li(f"{(self_consumption_sim_avg / solar_yield * 100):.2f}% Eigenverbrauchsanteil")
             ]),
             html.Br(),
             html.P("Amortisationsannahmen:"),

@@ -173,4 +173,13 @@ $$
 ```
 
 ## Weitere Entwicklungsmöglichkeiten: 
+**Simulation**
 - [ ] Randomisierung der 2-Wochen-Daten implementieren . Bisher nur auf zwei festen Wochen. Es kann aber Unterschiede geben, jenachdem wann gemessen wird.
+
+
+**App**
+- [ ] Amortationsdauer anpassbar (bspw. 5 und 10 Jahre) momentan nur 10 Jahre (mauell anpassbar über "years") siehe KOmmentare in savings.py
+- [ ] Investitionsvolumen anpassbar (momentan nur 600€)
+- [ ] Eingabe Nutzeranwendungsfreundlicher: konkrete Auswahlfelder (einfach nur Süd statt Asurichtungswinkel... )
+- [ ] Eingabe Nutzeranwendungsfreundlicher: Standort nicht mit Koordinaten eingeben, sondern einfach mit PLZ oder genauer Adresse. Dafür wahrscheinlich API nötig
+- [ ] 
