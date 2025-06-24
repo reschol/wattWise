@@ -205,15 +205,15 @@ def display_results(data):
             html.Br(),
             html.P("Amortisationsannahmen:"),
             html.Ul([
-                html.Li(f"Abschreibung über {years} Jahre", style={"textAlign": "center", "fontWeight": "500"}),
-                html.Li(f"Durchschnittlicher Preis für die gewählte Anlage: {investment_cost} €", style={"textAlign": "center", "fontWeight": "500"}),
+                html.Li(f"Abschreibung über {years} Jahre", style={"textAlign": "center", "fontWeight": "500"}), #TODO
+                html.Li(f"Durchschnittlicher Preis für die gewählte Anlage: {investment_cost} €", style={"textAlign": "center", "fontWeight": "500"}),#TODO
             ]),
             html.Br(),
             dbc.Table([
                 html.Thead(html.Tr([
-                    html.Th("Szenario"),
-                    html.Th(f"Ø Kosten/Jahr in den ersten {years} Jahren (€)"),
-                    html.Th("Ø Kosten/Jahr ab Jahr 11 (€)")
+                    html.Th("Szenario", style={"width": "33%", "textAlign": "center"}),
+                    html.Th(f"Ø Kosten/Jahr in den ersten {years} Jahren (€)", style={"width": "33%", "textAlign": "center"}),
+                    html.Th("Ø Kosten/Jahr ab Jahr 11 (€)", style={"width": "33%", "textAlign": "center"})
                 ])),
                 html.Tbody([
                     html.Tr([
