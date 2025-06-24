@@ -17,10 +17,11 @@ from plots import plot_user_friendly_consumption_profile, plot_daily_patterns_co
     Output("upload-output", "children"),
     Input("upload-data", "contents"),
     State("upload-data", "filename"),
+    State("householdname", "value"),  
     prevent_initial_call=True
 )
 
-def handle_csv_upload(contents, filename):
+def handle_csv_upload(contents, filename, hh_name):
     """Verarbeitet die hochgeladene CSV-Datei, speichert sie ab und zeigt eine Vorschau an."""
     if contents is None:
         return dbc.Alert("Keine Datei hochgeladen.", color="warning")
@@ -29,6 +30,15 @@ def handle_csv_upload(contents, filename):
         df = load_csv_as_df(contents)
         saved_path = save_dataframe_to_csv(df, filename)
         
+        # Spaltennamen ggf. angleichen für Output
+        if "date" in df.columns and "Time" not in df.columns:
+            df.rename(columns={"date": "Time"}, inplace=True)
+
+        if "Time" not in df.columns or hh_name not in df.columns:
+            return dbc.Alert("Die Datei muss mindestens die Spalten 'Time' und den angegebenen Haushaltsnamen enthalten.", color="danger")
+
+        df_preview = df[["Time", hh_name]].head()
+
         return dbc.Card(
             dbc.CardBody([
                 html.Div([
@@ -37,7 +47,7 @@ def handle_csv_upload(contents, filename):
                     html.P(f"Gespeichert unter: {saved_path}", className="text-muted mb-3"),
                 ]),
                 html.H6("Vorschau der ersten 5 Zeilen:", className="mb-2"),
-                dbc.Table.from_dataframe(df.head(), striped=True, bordered=True, hover=True),
+                dbc.Table.from_dataframe(df_preview, striped=True, bordered=True, hover=True),
             ]),
             className="shadow-sm border-start border-4 border-success"
         )
