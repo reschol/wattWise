@@ -53,6 +53,8 @@ def handle_csv_upload(contents, filename):
 @callback(
     Output("model-result-store", "data"),
     Output("submit-button", "children"),
+    Output("submit-button", "color"),
+    Output("submit-button", "outline"),
     Input("submit-button", "n_clicks"),
     Input("reset-button", "n_clicks"),
     State("householdname", "value"),
@@ -78,7 +80,7 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
 
     # Abbruch-Button gedrückt → Store leeren
     if triggered_id == "reset-button":
-        return {}, "Modell starten"
+        return {}, "Modell starten", "success", True
     
     # Submit gedrückt → Modell starten
     if triggered_id == "submit-button":
@@ -86,7 +88,7 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
             raise dash.exceptions.PreventUpdate
         try:
             if file_contents is None:
-                return {}, dbc.Alert("Bitte lade zuerst eine CSV-Datei hoch.", color="warning")
+                return {}, "Bitte lade zuerst eine CSV-Datei hoch.", "warning", False
             
             df = load_csv_as_df(file_contents)
 
@@ -95,7 +97,7 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
 
             # Nur die relevanten Spalten behalten: Time & Load
             if hh_name not in df.columns:
-                return {}, dbc.Alert(f"Die Spalte '{hh_name}' ist nicht in der CSV-Datei enthalten. Die CSV Datei muss die Spalten Time und bspw. SFH3_P_TOT haben", color="danger")
+                return {}, f"Die Spalte '{hh_name}' ist nicht in der CSV-Datei enthalten. Die CSV Datei muss die Spalten Time und bspw. SFH3_P_TOT haben", "danger", False
             else:
                 df = df.drop(columns=[col for col in df.columns if col != "Time" and col != hh_name])
                 df.rename(columns={hh_name: "Load"}, inplace=True)
@@ -141,10 +143,9 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
                 #Plots #TODO
                 #"pattern_plot_path": f"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\Loadbarplots.svg",
             }
-            return result_data, dbc.Alert("Modell erfolgreich ausgeführt!", color="success")
-
+            return result_data, "Modell erfolgreich berechnet!", "success", False
 
         except Exception as e:
             tb_str = traceback.format_exc()  # gibt den Traceback als String zurück
-            return {}, dbc.Alert(f"Fehler beim Ausführen des Modells:\n{str(e)}\n\nTraceback:\n{tb_str}", color="danger")
+            return {}, f"Fehler beim Ausführen des Modells:\n{str(e)}\n\nTraceback:\n{tb_str}", "danger", False
 
