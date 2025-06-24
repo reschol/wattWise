@@ -69,8 +69,11 @@ def display_results(data):
 
     # 3. Dynamische Wirtschaftlichkeitsrechnung mit gewählter Laufzeit
     cost_wo_wattwise = avg_static_cost_wo_pv
-    cost_w_wattwise = investment_cost / years + avg_dynamic_cost_w_pv
-    savings_first_10y = cost_wo_wattwise - cost_w_wattwise
+    costs_dynamic_w_pv_and_investment = investment_cost / years + avg_dynamic_cost_w_pv
+
+    costs_static_w_pv_and_investment = investment_cost / years + avg_static_cost_w_pv
+
+    savings_first_10y = cost_wo_wattwise - costs_dynamic_w_pv_and_investment
     savings_after_10y = cost_wo_wattwise - avg_dynamic_cost_w_pv
     
 
@@ -118,6 +121,7 @@ def display_results(data):
 
     # Karte zur Anzeige der Kostenergebnisse & des Diagramms
     # Boxplot für die drei Kostenvariablen
+    
     fig = go.Figure()
     fig.add_trace(go.Box(
         y=static_cost_wo_pv,
@@ -130,6 +134,12 @@ def display_results(data):
         name="Dynamisch (ohne PV)",
         boxmean='sd',
         marker_color='orange'
+    ))
+    fig.add_trace(go.Box(
+        y=static_cost_w_pv,
+        name="Statisch (mit PV)",
+        boxmean='sd',
+        marker_color='purple'
     ))
     fig.add_trace(go.Box(
         y=dynamic_cost_w_pv,
@@ -145,8 +155,7 @@ def display_results(data):
         plot_bgcolor="#f9f9f9",
         paper_bgcolor="#f9f9f9",
         font=dict(size=12),
-        yaxis=dict(title="Kosten (€)", zeroline=False, gridcolor="#eaeaea"),
-        legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5)
+        yaxis=dict(title="Kosten (€)", zeroline=False, gridcolor="#eaeaea")
     )
 
 
@@ -157,7 +166,7 @@ def display_results(data):
                 dbc.Col([
                     html.P("Die Boxplots zeigen die Verteilung der Monte-Carlo-Simulation der jährlichen Stromkosten je Tarifoption."),
                     html.Ul([
-                        html.Li("Statisch: fester Preis, keine PV"),
+                        html.Li("Statisch: fester Preis, ohne/mit PV"),
                         html.Li("Dynamisch: stündliche Preise, ohne/mit PV"),
                         html.Li("Box = 25.–75. Perzentil, Linie = Median, Punkt = Ausreißer"),
                     ]),
@@ -196,25 +205,45 @@ def display_results(data):
             html.Br(),
             html.P("Amortisationsannahmen:"),
             html.Ul([
-                html.Li(f"Abschreibung über {years} Jahre"),
-                html.Li(f"Durchschnittlicher Preis für die gewählte Anlage: {investment_cost} €"),
+                html.Li(f"Abschreibung über {years} Jahre", style={"textAlign": "center", "fontWeight": "500"}),
+                html.Li(f"Durchschnittlicher Preis für die gewählte Anlage: {investment_cost} €", style={"textAlign": "center", "fontWeight": "500"}),
             ]),
             html.Br(),
-            html.P([
-                "Kosten pro Jahr mit Lösung: ",
-                html.Strong(f"{cost_w_wattwise:.2f} €")
-            ]),
-            html.P([
-                "Kosten pro Jahr ohne Lösung: ",
-                html.Strong(f"{cost_wo_wattwise:.2f} €")
-            ]),
+            dbc.Table([
+                html.Thead(html.Tr([
+                    html.Th("Szenario"),
+                    html.Th(f"Ø Kosten/Jahr in den ersten {years} Jahren (€)"),
+                    html.Th("Ø Kosten/Jahr ab Jahr 11 (€)")
+                ])),
+                html.Tbody([
+                    html.Tr([
+                        html.Td("Statisch, ohne Balkon-PV"),
+                        html.Td(f"{cost_wo_wattwise:.2f} €", colSpan=2, style={"textAlign": "center", "fontWeight": "500"}),
+                    ]),
+                    html.Tr([
+                        html.Td("Dynamisch, ohne Balkon-PV"),
+                        html.Td(f"{avg_dynamic_cost_wo_pv:.2f} €", colSpan=2, style={"textAlign": "center", "fontWeight": "500"})
+                    ]),
+                    html.Tr([
+                        html.Td("Statisch, mit Balkon-PV"),
+                        html.Td(f"{costs_static_w_pv_and_investment:.2f} €", style={"textAlign": "center", "fontWeight": "500"}),
+                        html.Td(f"{avg_static_cost_w_pv:.2f} €", style={"textAlign": "center", "fontWeight": "500"})
+                    ]),
+                    html.Tr([
+                        html.Td("Dynamisch, mit Balkon-PV"),
+                        html.Td(f"{costs_dynamic_w_pv_and_investment:.2f} €", style={"textAlign": "center", "fontWeight": "500"}),
+                        html.Td(f"{avg_dynamic_cost_w_pv:.2f} €", style={"textAlign": "center", "fontWeight": "500"})
+                    ]),
+                ])
+            ], bordered=True, hover=True, responsive=True, striped=True, className="mt-3")
         ])
     ], className="mt-4 shadow-sm")
 
     sparen_hinweis = dbc.Alert([
-        html.H4("Langfristige Einsparung", className="alert-heading"),
+        html.H4("Langfristige Einsparung - mit Vollösung WattWise", className="alert-heading"),
+        html.Br(),
         html.P([
-            "Mit der gewählten Option und den oben getroffenen Annahmen sparen Sie in den ersten 10 Jahren ",
+            "Mit der besten Option (dynamische Preise und PV) und den oben getroffenen Annahmen sparen Sie in den ersten 10 Jahren ",
             html.Strong(f"{savings_first_10y:.2f} Euro pro Jahr")
         ]),
         html.P([
