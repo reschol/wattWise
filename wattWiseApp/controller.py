@@ -41,15 +41,22 @@ def handle_csv_upload(contents, filename, hh_name):
 
         return dbc.Card(
             dbc.CardBody([
-                html.Div([
-                    html.H5("Datei erfolgreich verarbeitet", className="text-success"),
-                    html.H6(f"Dateiname: {filename}", className="mb-1"),
-                    html.P(f"Gespeichert unter: {saved_path}", className="text-muted mb-3"),
-                ]),
-                html.H6("Vorschau der ersten 5 Zeilen:", className="mb-2"),
-                dbc.Table.from_dataframe(df_preview, striped=True, bordered=True, hover=True),
+            html.Div([
+                html.H5("Datei erfolgreich verarbeitet", className="text-success"),
+                html.H6(f"Dateiname: {filename}", className="mb-1"),
+                html.P(f"Gespeichert unter: {saved_path}", className="text-muted mb-3"),
             ]),
-            className="shadow-sm border-start border-4 border-success"
+            html.H6("Vorschau der ersten 5 Zeilen:", className="mb-2"),
+            dbc.Table.from_dataframe(
+                df_preview,
+                striped=True,
+                bordered=True,
+                hover=True,
+                responsive=True,  # sorgt für responsives Verhalten
+                className="w-50" # volle Breite der Card
+            ),
+            ]),
+            className="shadow-sm border-start border-4 border-success",
         )
     except Exception as e:
         return dbc.Alert(f"Fehler beim Einlesen: {str(e)}", color="danger")

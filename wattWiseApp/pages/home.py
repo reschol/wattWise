@@ -87,7 +87,7 @@ layout = dbc.Container([
         
         dbc.Row([
             #dbc.Label([html.I(className="bi bi-upload me-2 text-info"), "CSV-Datei hochladen"], width=2, id="label-upload"),
-            dbc.Label(["CSV-Datei hochladen"], width=3, id="label-upload"),
+            dbc.Label(["2-Wochen Verbrauchsdaten laden (.csv)"], width=3, id="label-upload"),
             dbc.Col(
                 dcc.Upload(
                     id="upload-data",
@@ -108,7 +108,7 @@ layout = dbc.Container([
         ], className="mb-3"),
         dbc.Tooltip("Lade deine CSV-Datei mit Verbrauchsdaten hoch.", target="label-upload", placement="bottom"),
         html.Div(id="upload-output", className="mt-4"),
-       
+        html.Br(),
         # Jahresverbrauchsfeld
         dbc.Row([
             dbc.Label("Jahresverbrauch (kWh)", width=4, id="label-consumption"),

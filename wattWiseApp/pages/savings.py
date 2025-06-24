@@ -155,7 +155,8 @@ def display_results(data):
         plot_bgcolor="#f9f9f9",
         paper_bgcolor="#f9f9f9",
         font=dict(size=12),
-        yaxis=dict(title="Kosten (€)", zeroline=False, gridcolor="#eaeaea")
+        yaxis=dict(title="Kosten (€)", zeroline=False, gridcolor="#eaeaea"),
+        showlegend=False
     )
 
 
@@ -170,15 +171,18 @@ def display_results(data):
                         html.Li("Dynamisch: stündliche Preise, ohne/mit PV"),
                         html.Li("Box = 25.–75. Perzentil, Linie = Median, Punkt = Ausreißer"),
                     ]),
-                html.Small("Tipp: Ein Doppelklick auf das Diagramm setzt den Zoom zurück.", className="text-muted fst-italic")
+                    html.Small("Tipp: Ein Doppelklick auf das Diagramm setzt den Zoom zurück.", className="text-muted fst-italic")
                 ], width=5, style={"minHeight": "250px"}),
 
                 dbc.Col([
-                    dcc.Graph(figure=fig, config={"displayModeBar": False}, style={"height": "250px"})
+                    dcc.Graph(figure=fig, config={"displayModeBar": False}, style={"height": "250px"}),
                 ], width=7)
-            ])
+            ]),
         )
     ], className="mt-4 shadow rounded-3 border border-light-subtle")
+
+
+
         
     
 
@@ -205,8 +209,8 @@ def display_results(data):
             html.Br(),
             html.P("Amortisationsannahmen:"),
             html.Ul([
-                html.Li(f"Abschreibung über {years} Jahre", style={"textAlign": "center", "fontWeight": "500"}), #TODO
-                html.Li(f"Durchschnittlicher Preis für die gewählte Anlage: {investment_cost} €", style={"textAlign": "center", "fontWeight": "500"}),#TODO
+                html.Li(f"Abschreibung über {years} Jahre", style={"textAlign": "left", "fontWeight": "500"}), #TODO
+                html.Li(f"Durchschnittlicher Preis für die gewählte Anlage: {investment_cost} €", style={"textAlign": "left", "fontWeight": "500"}),#TODO
             ]),
             html.Br(),
             dbc.Table([
