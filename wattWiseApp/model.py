@@ -189,7 +189,7 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
     #Spalten: Time und Electricity
     #Index: Time (UTC)
     solar_df = get_solar_data_from_api(ninja_token, lat, lon, start_date_forecast_solar, end_date_forecast_solar, cap, loss, tilt, azimuth)
-    solar_df = load_solar_data_from_csv(f'data/renewables_ninja_data/pv_{start_date_forecast_solar}_{end_date_forecast_solar}_lat{lat}_lon{lon}_cap{cap}.csv')
+    solar_df = load_solar_data_from_csv(root_dir / 'data' / 'renewables_ninja_data' / (f'pv_{start_date_forecast_solar}_{end_date_forecast_solar}_lat{lat}_lon{lon}_cap{cap}.csv'))
     
     #Results
     total_annual_solar_yield = solar_df['Electricity'].sum()
@@ -206,7 +206,7 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
     print("df_spot_data_requested.head():", df_spot_data_requested.head())
     df_dynamic_price = calculate_dynamic_price_with_fees(df_spot_data_requested, start_date_forecast, start_date_forecast + pd.Timedelta(days=365))
     
-    static_prices_df_2014_2024 = pd.read_csv('data/electricity_prices_yearly/electricity_prices_yearly2014_2024.csv', delimiter=',', decimal='.', parse_dates=['Year'])
+    static_prices_df_2014_2024 = pd.read_csv(root_dir / 'data' / 'electricity_prices_yearly' / 'electricity_prices_yearly2014_2024.csv', delimiter=',', decimal='.', parse_dates=['Year'])
     static_prices_df_2014_2024['Year'] = pd.to_datetime(static_prices_df_2014_2024['Year']).dt.year # Year als Jahreszahl
     
     
@@ -216,7 +216,7 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
     #without PV
     sim_costs = [calculate_annual_dynamic_costs(sim, df_dynamic_price, load_col='Load') for sim in final_simulations]
     sim_costs_round = [round(cost, 2) for cost in sim_costs]
-    static_price_per_kwh = get_fixed_price_per_kwh(2020,'data/electricity_prices_yearly/electricity_prices_yearly2014_2024.csv', "Summe")
+    static_price_per_kwh = get_fixed_price_per_kwh(2020,root_dir / 'data' / 'electricity_prices_yearly' / 'electricity_prices_yearly2014_2024.csv', "Summe")
     sim_costs_static = [calculate_annual_static_costs(sim, static_price_per_kwh, load_col="Load") for sim in final_simulations]
     avg_sim_costs_dynamic = sum(sim_costs) / len(sim_costs)
     avg_sim_costs_static = sum(sim_costs_static) / len(sim_costs_static)
