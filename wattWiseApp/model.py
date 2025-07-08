@@ -6,6 +6,7 @@ import sys
 import os
 import json
 import pandas as pd
+from pathlib import Path
 
 # Erlaube Importe aus dem übergeordneten Verzeichnis (z. B. für 'main.py')
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -36,7 +37,10 @@ from main import (
 )
 
 # Lade API-Schlüssel sicher aus secrets.json (nicht im Git!)
-with open(r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\secrets.json") as f:
+root_dir = Path(__file__).resolve().parent.parent # WATTWISE Ebene
+secrets_path = root_dir / 'secrets.json'
+
+with open(secrets_path) as f:
     secrets = json.load(f)
 ninja_token = secrets.get("ninja_token")
 entsoe_api_key = secrets.get("entsoe_api_key")
@@ -89,7 +93,7 @@ def load_and_adjust_standard_load_profile(file_path, sheet_name, time_col = "Tim
     Lädt das Standardlastprofil und passt es an das angegebene Jahr an.
 
     Args:
-        file_path (str): Pfad zur CSV-Datei des Standardlastprofils. file_path = r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\slp\GGV_SLP_1000_MWh_2019_01.xlsx"
+        file_path (str): Pfad zur CSV-Datei des Standardlastprofils. file_path = str(root_dir / 'data' / 'slp' / 'GGV_SLP_1000_MWh_2019_01.xlsx')
         sheet_name (str): Name des Arbeitsblatts in der Excel-Datei, das das Lastprofil enthält. Standard ist "15Min - SLP 2019".
         time_col (str): Name der Spalte mit Timestamps. Standard ist "Time".
         value_cols (list): Spalten, die beibehalten/gefüllt werden sollen. Wenn None → alle außer time_col. #hier value_cols=['H00 [kWh]']
@@ -161,7 +165,7 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
 
     # Load standard load profile
     slp = load_and_adjust_standard_load_profile(
-        file_path=r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\slp\GGV_SLP_1000_MWh_2019_01.xlsx",
+        file_path = str(root_dir / 'data' / 'slp' / 'GGV_SLP_1000_MWh_2019_01.xlsx'),
         sheet_name="15Min - SLP 2019",
         time_col="Time",
         value_cols=['H00 [kWh]'],
@@ -198,7 +202,7 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
     
 
     # Strompreise laden (ENTSOE Spotmarkt + Fixpreise)
-    df_spot_data_requested = load_spot_market_prices(start_date_forecast, start_date_forecast + pd.Timedelta(days=365), country_code = 'DE_LU', data_dir = r'D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\entsoe_data\normal_hourly', index_new_df_col= 'Time')
+    df_spot_data_requested = load_spot_market_prices(start_date_forecast, start_date_forecast + pd.Timedelta(days=365), country_code = 'DE_LU', data_dir = root_dir / 'data' / 'entsoe_data' / 'normal_hourly', index_new_df_col= 'Time')
     print("df_spot_data_requested.head():", df_spot_data_requested.head())
     df_dynamic_price = calculate_dynamic_price_with_fees(df_spot_data_requested, start_date_forecast, start_date_forecast + pd.Timedelta(days=365))
     

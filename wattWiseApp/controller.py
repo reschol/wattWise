@@ -6,7 +6,7 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 from model import load_csv_as_df, save_dataframe_to_csv, run_model_pipeline
 import traceback
-from plots import plot_user_friendly_consumption_profile, plot_daily_patterns_comparison, plot_layperson_friendly_profile
+#from plots import plot_user_friendly_consumption_profile, plot_daily_patterns_comparison, plot_layperson_friendly_profile
 
 
 # -----------------------
@@ -158,7 +158,6 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
                 "self_consumption_sim_avg": result["self_consumption_sim_avg"],
 
                 #Plots #TODO
-                #"pattern_plot_path": f"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\Loadbarplots.svg",
             }
             return result_data, "Modell erfolgreich berechnet!", "success", False
 

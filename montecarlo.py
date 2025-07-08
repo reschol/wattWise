@@ -2,14 +2,19 @@
 
 # === Imports ===
 
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import random
 import pickle
 import os
 
+#root_path festlegen 
+root_path = Path(__file__).resolve().parent #auf Ebene WATTWISE
+
+
 # === 1. Laden und Vorverarbeiten des Standardlastprofils ===
-file_path = r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\slp\GGV_SLP_1000_MWh_2019_01.xlsx"
+file_path = str(root_path/ 'data' / 'slp' / 'GGV_SLP_1000_MWh_2019_01.xlsx')
 sheet_name = "15Min - SLP 2019" # Single Load Profile 2019
 
 df_standard_load_profile_2019 = pd.read_excel(file_path, sheet_name=sheet_name)

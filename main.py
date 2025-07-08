@@ -4,6 +4,7 @@ from matplotlib import dates as mdates
 import numpy as np
 import pandas as pd
 import json
+from pathlib import Path
 
 from src.utils.renewables_ninja import fetch_solar_data
 from src.utils.entsoe_client import fetch_and_save_spot_prices
@@ -46,9 +47,13 @@ from evaluation import (
     get_actual_data_from_household_data
 )
 
+# Root ermitteln
+root_path = Path(__file__).resolve().parent #eine Ebene hoch (zu WATTWISE)
+
+
 # Define the API tokens
 # Personal renewables.ninja API token
-with open(r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\secrets.json") as f:
+with open(root_path / 'secrets.json') as f:
     secrets = json.load(f)
 
 ninja_token = secrets.get("ninja_token")
@@ -96,7 +101,7 @@ print("Household profile", testhousehold," for two weeks:", random_household_two
 
 #--b) Load Standard Load Profile (SLP) data for 2019
 
-file_path = r"D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\slp\GGV_SLP_1000_MWh_2019_01.xlsx"
+file_path = str(root_path / 'data' / 'slp' / 'GGV_SLP_1000_MWh_2019_01.xlsx')
 sheet_name = "15Min - SLP 2019" # Single Load Profile 2019
 df_standard_load_profile_2019 = pd.read_excel(file_path, sheet_name=sheet_name)
 
@@ -144,7 +149,7 @@ def fill_missing_hours(df: pd.DataFrame, time_col: str = "Time", value_cols: lis
 #TODO: End date
 #TODO: Funktion answenden actual_load_household = get_actual_data_from_household_data(sfh_2019, actual_start_date, actual_end_date, load_col=testhousehold)
 #TODO: nächste Zeile löschen
-actual_load = pd.read_csv(r'D:\Dokumente\Studium\20242025 WS\WattWise\Repo\wattWise\data\test_data_actual_load_profile_2020.csv', sep=',', index_col='date')
+actual_load = pd.read_csv(root_path / 'data' / 'test_data_actual_load_profile_2020.csv', sep=',', index_col='date')
 #only testhousehold ('SFHx_P_TOT') and date
 actual_load_household = actual_load[[testhousehold]]
 actual_load_household.index = pd.to_datetime(actual_load_household.index)
