@@ -66,7 +66,7 @@ entsoe_api_key = secrets.get("entsoe_api_key")
 # recommendation: use a JSON file called secrets.json, that is already in the gitignore and should thus be ignored by git
 
 #-----1. Load Data
-hh_path = r"local_input_data\1920 Final Data w. Additional Features HH Hourly Agg.pkl"
+hh_path = root_path / "local_input_data" / "1920 Final Data w. Additional Features HH Hourly Agg.pkl"
 start_2019 = '2019-01-01'
 end_2019 = '2019-12-31'
 start_2020 = '2020-01-01'
@@ -173,7 +173,7 @@ df_standard_load_profile_2019['Seasonal Factor'] = df_standard_load_profile_2019
 
 #--d) Load Spot Market Prices
 country_code = 'DE_LU'  # 'DE_LU' for 2018 - 2023 and 'DE_AT_LU' for < 2018
-spot_directory = 'data/entsoe_data/normal_hourly' #wenn daten bereits abgefragt wurden, sonst über API
+spot_directory = root_path / 'data' / 'entsoe_data' / 'normal_hourly' #wenn daten bereits abgefragt wurden, sonst über API
 entsoe_api_key = secrets.get("entsoe_api_key")
 #EntsoE API call
 #fetch_and_save_spot_prices(entsoe_api_key, country_code, start_2024, end_2024, spot_directory)
@@ -200,7 +200,7 @@ def main():
     df_dynamic_price = calculate_dynamic_price_with_fees(df_spot_data_requested, start_2020, end_2020)
     
     # Lade PV-Erzeugungsdaten
-    csv_path = 'data/renewables_ninja_data/pv_Karlsruhe_2020.csv'
+    csv_path = root_path / 'data' / 'renewables_ninja_data' / 'pv_Karlsruhe_2020.csv'
     solar_df = load_or_fetch_solar_data(csv_path, ninja_token)
 
 

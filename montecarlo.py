@@ -528,7 +528,7 @@ def load_or_run_simulation(household_col, profile_dict, year, n_simulations, mod
     """
 
     # Pfad zur Cache-Datei definieren (z. B. simulations_cache/SFH4_P_TOT_simulations.pkl)
-    cache_path = f"simulations_cache/{household_col}_simulations.pkl"
+    cache_path = root_path / "simulations_cache" / f"{household_col}_simulations.pkl"
     
     # Prüfen, ob Cache-Datei bereits existiert
     if os.path.exists(cache_path):
