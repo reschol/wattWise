@@ -10,7 +10,26 @@ We provide some initial files for a quick start, which in large parts are based 
 - src/util contains utility functions for retrieving data from Entso-e and Renewables.ninja
 
 *for executing the code you need working API keys for Renewables.ninja and Entso-e. Also install the requirements by calling pip install -r requirements.txt*.  
-If you use additional packages please add that to the requirements file
+If you use additional packages please add that to the requirements file.
+
+## Installationshinweis: 
+Dieses Projekt benötigt zwei API-Keys:
+- [Renewables.ninja](https://www.renewables.ninja/) API-Token
+- [ENTSO-E Transparency](https://transparency.entsoe.eu/) API-Key
+
+Erstelle deine eigene `secrets.json`:
+
+```json
+{
+    "ninja_token": "DEIN_RENEWABLES_NINJA_TOKEN_HIER",
+    "entsoe_api_key": "DEIN_ENTSOE_TOKEN_HIER"
+}
+```
+
+Installiere auch `requirements.txt`:
+```bash
+pip install -r requirements.txt
+```
 
 
 # Projektstruktur: WattWise Dash App

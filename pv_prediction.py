@@ -1,5 +1,4 @@
 # Standardbibliotheken und externe Abhängigkeiten importieren
-import os
 from pathlib import Path
 from urllib import response
 import pandas as pd
