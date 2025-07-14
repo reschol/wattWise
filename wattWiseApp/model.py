@@ -191,6 +191,7 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
     solar_df = get_solar_data_from_api(ninja_token, lat, lon, start_date_forecast_solar, end_date_forecast_solar, cap, loss, tilt, azimuth)
     solar_df = load_solar_data_from_csv(root_dir / 'data' / 'renewables_ninja_data' / (f'pv_{start_date_forecast_solar}_{end_date_forecast_solar}_lat{lat}_lon{lon}_cap{cap}.csv'))
     
+
     #Results
     total_annual_solar_yield = solar_df['Electricity'].sum()
     final_sim_with_pv = [calculate_net_load_with_pv(sim, solar_df) for sim in final_simulations] # wichtig hier final simulations, da diese bereits skaliert sind. Danavh nicht nochmal saklieren, sonst verlieren wir die Einsparung durch PV

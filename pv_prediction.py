@@ -1,12 +1,14 @@
 # Standardbibliotheken und externe Abhängigkeiten importieren
+import os
 from pathlib import Path
+from urllib import response
 import pandas as pd
 import numpy as np
 
 # Utility-Funktion zur API-Abfrage von Renewables.ninja
 from src.utils.renewables_ninja import fetch_solar_data
 
-root_path = Path(__file__).resolve().parent.parent
+root_path = Path(__file__).resolve().parent # In WATTWISE
 
 def get_solar_data_from_api(ninja_token, lat: float, lon: float, start: str, end: str,
                             capacity: float = 0.8, system_loss: float = 0.1,
@@ -29,6 +31,7 @@ def get_solar_data_from_api(ninja_token, lat: float, lon: float, start: str, end
         DataFrame: PV-Erzeugung. Einheit:  .
     """
     # API-Abfrage durchführen → Rohdaten (inkl. DataFrame und Metadaten)
+    
     raw_data = fetch_solar_data(
        ninja_token,
         lat,
@@ -44,6 +47,9 @@ def get_solar_data_from_api(ninja_token, lat: float, lon: float, start: str, end
     # Extrahiere den erzeugten DataFrame
     df = raw_data[0]
 
+    if df is None:
+        raise RuntimeError("Fehler beim Abrufen der Solar-Daten von Renewables.ninja – siehe Log-Ausgabe.")
+
     #Optional: Time-Index setzen und Zeitzone anpassen
     #df = df.set_index('Time')
     #df.index = df.index.tz_localize('UTC')
@@ -54,6 +60,10 @@ def get_solar_data_from_api(ninja_token, lat: float, lon: float, start: str, end
 
     output_path = output_dir / f'pv_{start}_{end}_lat{lat}_lon{lon}_cap{capacity}.csv'
     df.to_csv(output_path, index=True)
+
+    print(f"PV-Daten gespeichert unter: {output_path}")
+
+    output_path.resolve()
 
     
     return df

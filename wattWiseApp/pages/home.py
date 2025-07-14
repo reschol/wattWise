@@ -196,6 +196,19 @@ layout = dbc.Container([
 def is_valid_date_format(date_str):
     return bool(re.match(r"^\d{2}\.\d{2}\.\d{4}$", date_str))
 
+def parse_float(value):
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        value = value.strip().replace(",", ".")
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    return None
+
 @callback(
     Output("start-date", "invalid"), Output("start-date", "valid"),
     Output("end-date", "invalid"), Output("end-date", "valid"),
@@ -222,6 +235,7 @@ def is_valid_date_format(date_str):
 def validate_inputs(start_date, end_date, forecast_start,
                     consumption, lat, lon, cap, loss, tilt, azimuth):
     
+
     # Datum: TT.MM.JJJJ
     invalid_start = start_date is not None and not is_valid_date_format(start_date)
     valid_start = start_date is not None and is_valid_date_format(start_date)
