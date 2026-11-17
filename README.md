@@ -1,6 +1,8 @@
 # WattWise – Personalised Balcony-PV and Dynamic-Tariff Analysis
 
-This repository contains the software prototype of **WattWise**, an ENZo Real-World Project at KIT (2024–2026). The code was developed in a "Spezialveranstaltung Wirtschaftsinformatik" (information systems seminar).
+This repository contains the software prototype of **WattWise**, an ENZo Real-World Project at KIT (2024–2026) by Oliver Resch and Philipp Fritz.
+
+The load-forecasting models, the cost calculation and the first version of the Dash web app were developed by Hannah Heimpel as part of a "Spezialveranstaltung Wirtschaftsinformatik" (information systems seminar, 2024/2025), supervised by Oliver Resch. The app was subsequently extended by the project team (2026: additional visualisations, details page, release preparation).
 
 ## Vorwort von Betreuer
 
