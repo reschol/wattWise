@@ -1,138 +1,72 @@
-# WattWise – Personalised Balcony-PV and Dynamic-Tariff Analysis
+# WattWise – Personalisierte Analyse von Balkon-PV und dynamischen Stromtarifen
 
-This repository contains the software prototype of **WattWise**, an ENZo Real-World Project at KIT (2024–2026) by Oliver Resch and Philipp Fritz.
+WattWise ist ein Software-Prototyp, der auf Basis von **nur zwei Wochen gemessener Verbrauchsdaten** eines Haushalts abschätzt, ob sich ein **dynamischer Stromtarif** und/oder eine **Balkon-PV-Anlage** lohnen. Statt eines Standardlastprofils, wie es gängige Online-Rechner verwenden, wird das individuelle Verbrauchsmuster des Haushalts auf ein ganzes Jahr hochgerechnet und mit realen Spotmarktpreisen und simulierten PV-Erträgen kombiniert.
 
-The load-forecasting models, the cost calculation and the first version of the Dash web app were developed by Hannah Heimpel as part of a "Spezialveranstaltung Wirtschaftsinformatik" (information systems seminar, 2024/2025), supervised by Oliver Resch. The app was subsequently extended by the project team (2026: additional visualisations, details page, release preparation).
+Das Repository enthält
+- eine **Dash-Web-App**, in die Nutzer*innen ihr 2-Wochen-Lastprofil hochladen und Kosten, Ersparnisse und Amortisation einer Balkon-PV-Anlage interaktiv auswerten können, und
+- den **Analyse-Code**, mit dem verschiedene Prognosemodelle an 21 realen Haushalten verglichen wurden.
 
-## Vorwort von Betreuer
+## Hintergrund & Mitwirkende
 
-We provide some initial files for a quick start, which in large parts are based on the Agri-PV Plant Optimization project by Joshua Spreng.
+WattWise ist ein ENZo Real-World Project am KIT (2024–2026) von Oliver Resch und Philipp Fritz.
 
-*The project is structured as follows*
-- The main.py file is the entry point of the program and contains the main functions to run the optimization process.
-- src/util contains utility functions for retrieving data from Entso-e and Renewables.ninja
+Die Prognosemodelle, die Kostenberechnung und die erste Version der Web-App wurden von **Hannah Heimpel** im Rahmen einer Spezialveranstaltung Wirtschaftsinformatik (2024/2025) entwickelt, betreut von Oliver Resch. Anschließend wurde die App vom Projektteam erweitert (2026: zusätzliche Visualisierungen, Detailseite, Vorbereitung der Veröffentlichung).
 
-*for executing the code you need working API keys for Renewables.ninja and Entso-e. Also install the requirements by calling pip install -r requirements.txt*.  
-If you use additional packages please add that to the requirements file.
+Die Hilfsfunktionen für den Datenabruf von ENTSO-E und Renewables.ninja (`src/utils/`) basieren auf dem Projekt *Agri-PV Plant Optimization* von Joshua Spreng.
 
-## Installationshinweis: 
-Dieses Projekt benötigt zwei API-Keys:
-- [Renewables.ninja](https://www.renewables.ninja/) API-Token
-- [ENTSO-E Transparency](https://transparency.entsoe.eu/) API-Key
+## Installation
 
-Erstelle deine eigene `secrets.json`:
+Getestet mit Python 3.11.
 
-```json
-{
-    "ninja_token": "DEIN_RENEWABLES_NINJA_TOKEN_HIER",
-    "entsoe_api_key": "DEIN_ENTSOE_TOKEN_HIER"
-}
-```
-
-Installiere auch `requirements.txt`:
 ```bash
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # Linux / macOS
 pip install -r requirements.txt
 ```
 
+### API-Schlüssel
 
-# Projektstruktur: WattWise Dash App
+Benötigt werden zwei (kostenlose) API-Zugänge:
+- [Renewables.ninja](https://www.renewables.ninja/) – API-Token für PV-Erzeugungsdaten
+- [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/) – API-Key für Spotmarktpreise
 
-## Features
-- Upload individueller Verbrauchsdaten.
-- PV-Ertragsberechnung via API oder CSV
-- Monte-Carlo-Lastprofil-Simulation
-- Dynamische vs. statische Preisvergleiche eines Lastprofils. Wenn später  bessere Modelle gefunden werden, diese leicht eintauschbar.
-- Interaktive Amortisationsanalyse #TODO
+Lege im Hauptverzeichnis eine Datei `secrets.json` an:
 
+```json
+{
+    "ninja_token": "DEIN_RENEWABLES_NINJA_TOKEN",
+    "entsoe_api_key": "DEIN_ENTSOE_API_KEY"
+}
+```
 
-## Einstiegspunkt
+Die Datei ist per `.gitignore` ausgeschlossen und darf **niemals committet** werden.
 
-- **`app.py`**  
-  → Startpunkt der App  
-  → Initialisiert die Dash-App, definiert Layout und Navigation  
-  → Die App läuft dann unter: http://127.0.0.1:8050/ 
-  → Enthält `dcc.Store` zur Zwischenspeicherung der Nutzer- und Modell-Daten
+## Nutzung der Web-App
 
+```bash
+cd wattWiseApp
+python app.py
+```
 
-## Zentrale Logik
+Die App läuft anschließend unter http://127.0.0.1:8050/ und besteht aus drei Seiten:
 
-- **`controller.py`**  
-  → Zentrale Callback-Logik  
-  → Datei-Upload, Validierung und Modellstart per Button  
-  → Speichert Ergebnisse im Dash-Store
+| Seite | Inhalt |
+|---|---|
+| **Dateneingabe** | Upload des 2-Wochen-Lastprofils, Jahresverbrauch, Standort und PV-Konfiguration (Leistung, Neigung, Ausrichtung, Verluste) |
+| **Ersparnisse** | Kennzahlen, Kostenvergleich fixer vs. dynamischer Tarif mit und ohne PV, Verteilung der Monte-Carlo-Ergebnisse, Amortisationsverlauf |
+| **Details** | Tagesprofil, Heatmap Monat × Stunde, Energiefluss (Sankey), monatlicher Verbrauch und PV-Deckungsgrad |
 
-- **`model.py`**  
-  → Kern-Logik der Anwendung  
-  → Funktionen zur Datenaufbereitung, Forecast, PV-Ertrags- & Preisberechnung  
-  → Führt gesamte Modell-Pipeline aus
+### Format der CSV-Datei
 
-- **`wattWiseApp/pages/`** 
-  Siehe unten
+Die hochgeladene Datei muss stündliche Verbrauchswerte enthalten:
 
+| Spalte | Inhalt | Beispiel |
+|---|---|---|
+| `Time` (alternativ `date`) | Zeitstempel (stündlich) | `2019-01-01 00:00` |
+| `<Name>` | Verbrauch je Stunde in kWh | `0.24` |
 
-### Seiten (Views)
-
-Unter `wattWiseApp/pages/`:
-
-- **`home.py`**  
-  → Seite zur Dateneingabe (z. B. Upload CSV, Standort, PV-Konfiguration)
-
-- **`savings.py`**  
-  → Seite zur Auswertung möglicher Ersparnisse  
-  → Holt Daten aus dem Store und zeigt Simulationsergebnisse, interaktiv
-  → <span style="color:red">Gerne hier weitere Plots etc. einfügen.</span>  
-  → <span style="color:red">Auch Logik mit Amortisationsdauer noch nicht optimal.</span>  
-
-- **`details.py`**  
-  → Detaillierte Visualisierungen und Auswertungen (z. B. Lastprofile, Forecast-Vergleiche)
-  → <span style="color:red">Hier ist Plazt, um sich auszutoben!</span>
-
-
-### Hilfsfunktionen / Module
-diese wurden auch zur Modell Evaluierumg benutzt.
-
-- **`pv_prediction.py`**  
-  → Solar-Ertragsprognose via API (z. B. Renewables Ninja) oder CSV
-
-- **`montecarlo.py`**  
-  → Lastprofil-Simulation per Monte Carlo  
-  → Basis für Verbrauchsprognosen
-
-- **`plots.py`**  
-  → Generierung von Visualisierungen (z. B. Verbrauchsprofile, Vergleichsplots). <span style="color:red"> Allerdings erhalte ich hier noch ERRORs.</span>
-
-
-### Daten & Cache
-
-- **`data/`**  
-  → Ablage externer Rohdaten (Strompreise, Standardlastprofile, Wetterdaten)
-
-- **`simulations_cache/`**  
-  → Ablage vorab berechneter Simulationsergebnisse als `.pkl` (zur Laufzeitbeschleunigung), diese dienten v.a. der Modellevaluierumg
-
-
-### Hinweise
-
-- **`secrets.json`**  
-  → API-Zugänge und Token (z. B. für Entsoe oder Renewables Ninja)  
-  → Wird per `.gitignore` ignoriert – **niemals committen!**
-
-
-## Code Anwendung
-
-### App: Verbrauchsprofil hochladen
-Damit der Stromverbrauch korrekt verarbeitet werden kann, muss die hochgeladene CSV-Datei folgende Struktur erfüllen:
-
-| Spalte        | Inhalt                              | Format / Beispiel                       |
-|---------------|-------------------------------------|-----------------------------------------|
-| `Time`        | Zeitstempel (stündlich)             | `2019-01-01 00:00`                      |
-| `<Spaltenname>` | Stromverbrauch je Stunde (in kWh) | z. B. `0.24`                            |
-
-**Wichtig**:  
- - Die Datei muss **stündliche Werte** enthalten
- - ie Spalte mit Verbrauchswerten kann beliebig benannt sein (z. B. `SFH3_P_TOT`, `Last`, `Haushalt_1`) – dieser Name muss im Formular explizit angegeben werden unter Name.
-
- Beispiel – Struktur einer gültigen CSV-Datei:
+Die Verbrauchsspalte kann beliebig heißen (z. B. `SFH3_P_TOT` oder `Haushalt_1`). Ihr Name wird im Eingabeformular angegeben.
 
 ```csv
 Time,SFH3_P_TOT
@@ -142,82 +76,96 @@ Time,SFH3_P_TOT
 ...
 ```
 
+Beispieldateien liegen unter `data/` (z. B. `load_profile_2019_2weeks_01012019_14012019.csv`, enthält mehrere Haushalte als Spalten, etwa `SFH3_P_TOT`).
 
+**Hinweis:** Spotmarktpreise liegen für 2019, 2020 und 2024 vor. Das Prognosejahr muss daher eines dieser Jahre sein, sofern keine weiteren Preise über `src/utils/entsoe_client.py` heruntergeladen werden.
 
-# Projektstruktur: WattWise Haushaltslastprofil-Simulation & Prognosemodellierung
+## Methodik
 
-#### Dieses Projekt implementiert und vergleicht verschiedene Modelle zur Vorhersage des Stromverbrauchs einzelner Haushalte. Grundlage sind historische Verbrauchsdaten, Standardlastprofile (SLP), Wetterdaten (insbesondere PV-Erzeugung) sowie dynamische Strompreise. Die Modelle werden anhand realer Verbrauchsdaten bewertet und ermöglichen einen praxisnahen Vergleich verschiedener Prognoseansätze.
+### Prognosemodelle
 
+Aus den zwei Wochen Messdaten wird ein stündliches Lastprofil für ein ganzes Jahr erzeugt:
 
-## Inhalt
+| Modell | Beschreibung |
+|---|---|
+| **A – Monte Carlo** | 100 zufällig erzeugte Jahreslastprofile auf Basis der Tagesprofile aus den zwei Wochen; saisonale Faktoren aus dem Standardlastprofil (SLP) 2019. Liefert eine Verteilung möglicher Verläufe inkl. Unsicherheit. **Wird in der App verwendet.** |
+| **B1 – 2-Wochen-Profil** | Das mittlere Tagesprofil (werktags und Wochenende) wird auf das gesamte Jahr übertragen. |
+| **B2 – Hybridmodell** | Kombination aus B1 und SLP, gewichtet nach Saison: in der Saison des Messzeitraums überwiegt das gemessene Profil, außerhalb dominiert das SLP. |
 
-### Überblick der Verbrauchsprognose-Modelle:
+### PV-Integration
 
-| Modell  | Kurzbeschreibung                                                                                                    |
-|---------|---------------------------------------------------------------------------------------------------------------------|
-| **A**   | **Monte-Carlo-Modell:** 100 zufällig erzeugte Jahreslastprofile auf Basis des 2-Wochen-Haushaltsprofils. Saisonale Faktoren aus dem SLP 2019 werden angewendet. Liefert eine Verteilung möglicher Verläufe inkl. Unsicherheiten. |
-| **B1**  | **Customer-Wochen-Profil:** Einfaches Modell. Das mittlere Tagesprofil (werktags & Wochenende) der 2/4-Wochen-Daten wird auf das gesamte Jahr 2020 übertragen. |
-| **B2**  | **Hybridmodell: Customer-Wochen + SLP kombiniert** Kombination aus B1 und SLP-Profil (Standardlastprofil 2019), gewichtet nach Saison. In saisonaler Hauptzeit überwiegt das 2/4-Wochen-Profil, außerhalb dominiert das SLP. |
+Die PV-Erzeugung wird stündlich über Renewables.ninja simuliert. Die Netzbezugslast ergibt sich als
 
-### PV Balkon-Erzeugung integrieren
-**Ziel:** Einbezug von Photovoltaikdaten in Haushaltsverbrauchsprognosen  
-**Netto-Lastberechnung:** 
-Der Stromverbrauch des Haushalts wird stündlich um die erzeugte PV-Leistung reduziert.  
+```
+Netzbezug = max(Verbrauch − PV-Erzeugung, 0)
+```
 
-**Formel:** 
-$$
-Nettoverbrauch = max(Verbrauch − PV-Erzeugung, 0)
-$$
+### Kostenberechnung
 
+- **Fixer Tarif:** durchschnittlicher Haushaltsstrompreis des Prognosejahres (BDEW)
+- **Dynamischer Tarif:** stündlicher Day-Ahead-Spotpreis (ENTSO-E, DE-LU) zuzüglich eines verbrauchsabhängigen Aufschlags für Netzentgelte, Abgaben und Steuern (19,71 ct/kWh) und einer Grundgebühr (15,73 €/Monat, angelehnt an Tibber 2024)
+- jeweils mit und ohne Balkon-PV
 
+### Ergebnisse der Modellevaluation
 
+Bewertet an 21 Einfamilienhaushalten des WPuQ-Datensatzes mit je 14 Tagen Messdaten (Normalized Mean Absolute Error der stündlichen Last):
 
-### Modellbewertung:
-  - Normalized Mean Absolute Error (NMAE)
-  - Stromkostenberechnung unter:
-    - dynamischem Preis (z. B. Tibber, Entso-E Spotpreise)
-    - mit & ohne PV-Eigenverbrauch
+| Modell | Ø NMAE | Std.-Abw. |
+|---|---|---|
+| A – Monte Carlo | 61,1 % | 10,2 % |
+| B1 – 2-Wochen-Profil | 50,9 % | 9,0 % |
+| B2 – Hybridmodell | 48,9 % | 9,9 % |
+
+Die Jahreskosten mit dynamischem Tarif ohne PV werden von allen Modellen sehr genau getroffen (Ø Abweichung < 1 €). Mit PV unterschätzen B1 und B2 die Kosten deutlich (−13 € bzw. −19 €), während das Monte-Carlo-Modell am genauesten ist (+4,5 €). 30 statt 14 Tage Messdaten verbessern die Ergebnisse nur minimal.
 
 ## Projektstruktur
 
-```bash
+```text
 .
-├── main.py                       # Hauptskript zur Modellausführung
-├── pv_prediction.py              # PV-Datenanbindung (API + Netto-Last)
-├── montecarlo.py                 # Monte-Carlo-basierte Lastprofil-Simulation
-├── load_prediction_2week.py      # Modelle B1 & B2: Extrapolation & SLP-Kombi
-├── evaluation.py                 # NMAE- und Preisabweichungsmetriken
-├── customer_input_check.py       # Datenvorbereitung & Filterung
-├── /data                         # Eingabedaten (Haushalte, PV, Preise, SLP)
-├── /simulations_cache            # Zwischengespeicherte Simulationen (per Haushalt) um später schneller zu rechnen
-├── secrets.json                  # API-Schlüssel (ausgeschlossen per `.gitignore`)
-└── README.md                     # Projektdokumentation
+├── wattWiseApp/                  # Dash-Web-App
+│   ├── app.py                    #   Einstiegspunkt, Layout und Navigation
+│   ├── controller.py             #   Callbacks: Upload, Validierung, Modellstart
+│   ├── model.py                  #   Modell-Pipeline: Simulation, PV, Preise, Kosten
+│   ├── plots.py                  #   ältere Matplotlib-Plots (derzeit nicht verwendet)
+│   └── pages/                    #   Seiten: home.py, savings.py, details.py
+├── main.py                       # Skript zur Modellevaluation über alle Haushalte
+├── montecarlo.py                 # Modell A: Monte-Carlo-Simulation, SLP, Kostenfunktionen
+├── load_prediction_2week_slp.py  # Modelle B1 und B2
+├── pv_prediction.py              # PV-Daten (API/CSV) und Netzbezugsberechnung
+├── evaluation.py                 # NMAE- und Kostenabweichungsmetriken
+├── customer_input_check.py       # Datenaufbereitung und Filterung
+├── src/utils/                    # API-Clients für ENTSO-E und Renewables.ninja
+├── data/                         # Eingabedaten (Lastprofile, PV, Preise, SLP)
+├── local_input_data/             # Haushaltsdatensatz (WPuQ, stündlich)
+├── simulations_cache/            # zwischengespeicherte Monte-Carlo-Simulationen
+├── output_load/                  # Prognoseergebnisse
+├── archive/                      # Jupyter-Notebooks aus der Entwicklungsphase
+├── all_runs_results_14days.json  # Evaluationsergebnisse (30 Läufe à 21 Haushalte)
+└── requirements.txt
 ```
 
-## Weitere Entwicklungsmöglichkeiten: 
-**Simulation**
-- [ ] Randomisierung der 2-Wochen-Daten implementieren . Bisher nur auf zwei festen Wochen. Es kann aber Unterschiede geben, jenachdem wann gemessen wird.
+## Mögliche Weiterentwicklungen
 
+**Modell**
+- Messzeitraum randomisieren: bisher werden feste zwei Wochen verwendet, die Ergebnisse können aber je nach Jahreszeit der Messung variieren.
+- Batteriespeicher in die Simulation aufnehmen.
 
 **App**
-- [ ] Amortationsdauer anpassbar (bspw. 5 und 10 Jahre) momentan nur 10 Jahre (mauell anpassbar über "years") siehe KOmmentare in savings.py
-- [ ] Investitionsvolumen anpassbar (momentan nur 600€)
-- [ ] Eingabe Nutzeranwendungsfreundlicher: konkrete Auswahlfelder (einfach nur Süd statt Asurichtungswinkel... )
-- [ ] Eingabe Nutzeranwendungsfreundlicher: Standort nicht mit Koordinaten eingeben, sondern einfach mit PLZ oder genauer Adresse. Dafür wahrscheinlich API nötig
-- [ ] 
+- Investitionskosten (derzeit 600 €) und Abschreibungsdauer (derzeit 10 Jahre) im Formular anpassbar machen (siehe `savings.py`).
+- Eingabe vereinfachen: Auswahlfelder (z. B. „Süd“ statt Azimutwinkel) und Standortangabe per PLZ oder Adresse statt Koordinaten.
 
-## Datenquellen & Lizenzen / Data sources & licences
+## Datenquellen & Lizenzen
 
-This repository contains (processed) third-party data. Please respect the respective licences:
+Dieses Repository enthält (aufbereitete) Daten Dritter. Bitte die jeweiligen Lizenzen beachten:
 
-| Data | Source | Licence |
+| Daten | Quelle | Lizenz |
 |---|---|---|
-| Household load profiles (`local_input_data/`, and data derived from them in `data/*.csv`, `simulations_cache/`, `output_load/`) | WPuQ dataset: Schlemminger, M., Ohrdes, T., Schneider, E., Knoop, M. (2022): *Dataset on electrical single-family house and heat pump load profiles in Germany*. Scientific Data 9, 56. https://doi.org/10.1038/s41597-022-01156-1. Resampled to hourly values and processed for this project. | CC BY 4.0 |
-| Day-ahead spot prices DE-LU (`data/entsoe_data/`) | ENTSO-E Transparency Platform, https://transparency.entsoe.eu/ | CC BY 4.0 |
-| PV generation time series (`data/renewables_ninja_data/`) | Renewables.ninja, https://www.renewables.ninja/ (Pfenninger & Staffell 2016; Staffell & Pfenninger 2016) | CC BY-NC 4.0 |
-| Standard load profile H0 2019 (`data/slp/`) | Standard load profile as published by the grid operator | as published by the grid operator |
-| Yearly household electricity prices (`data/electricity_prices_yearly/`) | BDEW Strompreisanalyse | – |
+| Haushaltslastprofile (`local_input_data/` sowie daraus abgeleitete Daten in `data/*.csv`, `simulations_cache/`, `output_load/`) | WPuQ-Datensatz: Schlemminger, M., Ohrdes, T., Schneider, E., Knoop, M. (2022): *Dataset on electrical single-family house and heat pump load profiles in Germany*. Scientific Data 9, 56. https://doi.org/10.1038/s41597-022-01156-1 – für dieses Projekt auf Stundenwerte aggregiert und um Zeitmerkmale ergänzt | CC BY 4.0 |
+| Day-Ahead-Spotpreise DE-LU (`data/entsoe_data/`) | ENTSO-E Transparency Platform, https://transparency.entsoe.eu/ | CC BY 4.0 |
+| PV-Erzeugungszeitreihen (`data/renewables_ninja_data/`) | Renewables.ninja, https://www.renewables.ninja/ (Pfenninger & Staffell 2016; Staffell & Pfenninger 2016) | CC BY-NC 4.0 |
+| Standardlastprofil H0 2019 (`data/slp/`) | vom Netzbetreiber veröffentlichtes Standardlastprofil | gemäß Veröffentlichung des Netzbetreibers |
+| Jährliche Haushaltsstrompreise (`data/electricity_prices_yearly/`) | BDEW-Strompreisanalyse | – |
 
-## License
+## Lizenz
 
-The source code in this repository is licensed under the MIT License, see [LICENSE](LICENSE). The licence does not cover the third-party data listed above.
+Der Quellcode steht unter der MIT-Lizenz, siehe [LICENSE](LICENSE). Die Lizenz gilt nicht für die oben aufgeführten Daten Dritter.
