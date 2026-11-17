@@ -1,5 +1,6 @@
-# RADME.md
-# This is the repository of the WattWise Spezialveranstaltung Project 2024
+# WattWise – Personalised Balcony-PV and Dynamic-Tariff Analysis
+
+This repository contains the software prototype of **WattWise**, an ENZo Real-World Project at KIT (2024–2026). The code was developed in a "Spezialveranstaltung Wirtschaftsinformatik" (information systems seminar).
 
 ## Vorwort von Betreuer
 
@@ -202,3 +203,19 @@ $$
 - [ ] Eingabe Nutzeranwendungsfreundlicher: konkrete Auswahlfelder (einfach nur Süd statt Asurichtungswinkel... )
 - [ ] Eingabe Nutzeranwendungsfreundlicher: Standort nicht mit Koordinaten eingeben, sondern einfach mit PLZ oder genauer Adresse. Dafür wahrscheinlich API nötig
 - [ ] 
+
+## Datenquellen & Lizenzen / Data sources & licences
+
+This repository contains (processed) third-party data. Please respect the respective licences:
+
+| Data | Source | Licence |
+|---|---|---|
+| Household load profiles (`local_input_data/`, and data derived from them in `data/*.csv`, `simulations_cache/`, `output_load/`) | WPuQ dataset: Schlemminger, M., Ohrdes, T., Schneider, E., Knoop, M. (2022): *Dataset on electrical single-family house and heat pump load profiles in Germany*. Scientific Data 9, 56. https://doi.org/10.1038/s41597-022-01156-1. Resampled to hourly values and processed for this project. | CC BY 4.0 |
+| Day-ahead spot prices DE-LU (`data/entsoe_data/`) | ENTSO-E Transparency Platform, https://transparency.entsoe.eu/ | CC BY 4.0 |
+| PV generation time series (`data/renewables_ninja_data/`) | Renewables.ninja, https://www.renewables.ninja/ (Pfenninger & Staffell 2016; Staffell & Pfenninger 2016) | CC BY-NC 4.0 |
+| Standard load profile H0 2019 (`data/slp/`) | Standard load profile as published by the grid operator | as published by the grid operator |
+| Yearly household electricity prices (`data/electricity_prices_yearly/`) | BDEW Strompreisanalyse | – |
+
+## License
+
+The source code in this repository is licensed under the MIT License, see [LICENSE](LICENSE). The licence does not cover the third-party data listed above.

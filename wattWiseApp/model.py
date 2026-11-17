@@ -217,7 +217,9 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
     #without PV
     sim_costs = [calculate_annual_dynamic_costs(sim, df_dynamic_price, load_col='Load') for sim in final_simulations]
     sim_costs_round = [round(cost, 2) for cost in sim_costs]
-    static_price_per_kwh = get_fixed_price_per_kwh(2020,root_dir / 'data' / 'electricity_prices_yearly' / 'electricity_prices_yearly2014_2024.csv', "Summe")
+    # Fixpreis des Prognosejahres verwenden; Tabelle deckt nur 2014–2024 ab → auf nächstes verfügbares Jahr begrenzen
+    static_price_year = min(max(forecast_year, 2014), 2024)
+    static_price_per_kwh = get_fixed_price_per_kwh(static_price_year, root_dir / 'data' / 'electricity_prices_yearly' / 'electricity_prices_yearly2014_2024.csv', "Summe")
     sim_costs_static = [calculate_annual_static_costs(sim, static_price_per_kwh, load_col="Load") for sim in final_simulations]
     avg_sim_costs_dynamic = sum(sim_costs) / len(sim_costs)
     avg_sim_costs_static = sum(sim_costs_static) / len(sim_costs_static)
