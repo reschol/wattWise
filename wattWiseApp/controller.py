@@ -97,6 +97,9 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
 
     # Abbruch-Button gedrückt → Store leeren
     if triggered_id == "reset-button":
+        # Nur bei echtem Klick (Button wird auf der Ergebnisseite dynamisch eingefügt)
+        if not reset_clicks:
+            raise dash.exceptions.PreventUpdate
         return {}, "Modell starten", "success", True
     
     # Submit gedrückt → Modell starten

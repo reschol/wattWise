@@ -368,4 +368,8 @@ def display_results(data):
     prevent_initial_call=True
 )
 def reset_model_data(n_clicks):
+    # Der Button wird dynamisch eingefügt; Dash löst den Callback dabei ohne Klick aus.
+    # Nur bei echtem Klick zurücksetzen, sonst gingen die Ergebnisse beim Öffnen der Seite verloren.
+    if not n_clicks:
+        raise dash.exceptions.PreventUpdate
     return None
