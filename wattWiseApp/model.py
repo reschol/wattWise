@@ -231,6 +231,36 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
 
 
 
+    # --- Aggregierte Profil-Daten für Visualisierungen ---
+    # Mittleres Lastprofil über alle 100 Simulationen berechnen
+    combined_sims = pd.concat(final_simulations)
+    avg_profile = combined_sims.groupby(combined_sims.index)['Load'].mean()
+
+    # Durchschnittlicher Verbrauch je Stunde des Tages (0-23)
+    hourly_load_avg = avg_profile.groupby(avg_profile.index.hour).mean().round(4).tolist()
+
+    # Monatliche Gesamtverbräuche (kWh/Monat, Durchschnitt aller Simulationen)
+    monthly_load_totals = avg_profile.groupby(avg_profile.index.month).sum().round(2).tolist()
+
+    # Monat × Stunde Heatmap (12 × 24 Matrix) für detaillierte Verbrauchsanalyse
+    monthly_hourly = avg_profile.groupby([avg_profile.index.month, avg_profile.index.hour]).mean()
+    monthly_hourly_heatmap = monthly_hourly.unstack(level=1).round(4).values.tolist()
+
+    # Mittleres Nettolastprofil (mit PV) je Stunde
+    combined_sims_pv = pd.concat(final_sim_with_pv)
+    avg_profile_pv = combined_sims_pv.groupby(combined_sims_pv.index)['Load'].mean()
+    hourly_load_avg_w_pv = avg_profile_pv.groupby(avg_profile_pv.index.hour).mean().round(4).tolist()
+
+    # Solar-Aggregationen (Stunde und Monat)
+    solar_index = solar_df.index
+    if solar_index.tz is not None:
+        solar_df_tz = solar_df.copy()
+        solar_df_tz.index = solar_index.tz_convert(None)
+    else:
+        solar_df_tz = solar_df
+    solar_hourly_avg = solar_df_tz.groupby(solar_df_tz.index.hour)['Electricity'].mean().round(4).tolist()
+    solar_monthly_totals = solar_df_tz.groupby(solar_df_tz.index.month)['Electricity'].sum().round(2).tolist()
+
     #Ergebnis zurückgeben
     return {
         "status": "success",
@@ -249,4 +279,12 @@ def run_model_pipeline(hh_name, df, lat, lon, cap, loss, tilt, azimuth,
         "solar_yield": solar_df,
         "annual solar_yield": total_annual_solar_yield,
         "self_consumption_sim_avg": self_consumption_sim_avg,
+
+        # Aggregierte Daten für Visualisierungen
+        "hourly_load_avg": hourly_load_avg,
+        "hourly_load_avg_w_pv": hourly_load_avg_w_pv,
+        "monthly_load_totals": monthly_load_totals,
+        "monthly_hourly_heatmap": monthly_hourly_heatmap,
+        "solar_hourly_avg": solar_hourly_avg,
+        "solar_monthly_totals": solar_monthly_totals,
     }

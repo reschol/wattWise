@@ -157,7 +157,13 @@ def handle_model_submit(submit_clicks, reset_clicks, hh_name, file_contents, lat
                 "annual_solar_yield": result["annual solar_yield"],
                 "self_consumption_sim_avg": result["self_consumption_sim_avg"],
 
-                #Plots #TODO
+                # Aggregierte Profil-Daten für Visualisierungen
+                "hourly_load_avg": result["hourly_load_avg"],
+                "hourly_load_avg_w_pv": result["hourly_load_avg_w_pv"],
+                "monthly_load_totals": result["monthly_load_totals"],
+                "monthly_hourly_heatmap": result["monthly_hourly_heatmap"],
+                "solar_hourly_avg": result["solar_hourly_avg"],
+                "solar_monthly_totals": result["solar_monthly_totals"],
             }
             return result_data, "Modell erfolgreich berechnet!", "success", False
 
